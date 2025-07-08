@@ -10,16 +10,17 @@ import { TYPES_CONVENTIONS, MODES_SELECTION, STATUTS_CONVENTIONS } from '@/lib/c
 const ConventionForm = ({ isOpen, onClose, onSubmit, convention = null }) => {
   const [formData, setFormData] = useState({
     numero: convention?.numero || '',
+    mandatId: convention?.mandatId || '',
+    ligneBudgetaireId: convention?.ligneBudgetaireId || '',
+    modeSelection: convention?.modeSelection || 'appel_offres',
+    typeConvention: convention?.typeConvention || 'prestation_service',
+    numeroConvention: convention?.numeroConvention || convention?.numero || '',
     objet: convention?.objet || '',
     dateDebut: convention?.dateDebut || '',
     dateFin: convention?.dateFin || '',
-    typeConvention: convention?.typeConvention || 'prestation_service',
-    modeSelection: convention?.modeSelection || 'appel_offres',
     statut: convention?.statut || 'active',
     montantTotal: convention?.montantTotal || '',
     periodicitePaiement: convention?.periodicitePaiement || 'mensuel',
-    mandatId: convention?.mandatId || '',
-    ligneBudgetaireId: convention?.ligneBudgetaireId || '',
     description: convention?.description || ''
   });
 
@@ -148,7 +149,16 @@ const ConventionForm = ({ isOpen, onClose, onSubmit, convention = null }) => {
     const newErrors = {};
 
     if (!formData.numero.trim()) {
-      newErrors.numero = 'Le numéro de la convention est requis';
+      newErrors.numero = 'Le numéro est requis';
+    }
+    if (!formData.mandatId) {
+      newErrors.mandatId = 'Veuillez sélectionner un mandat';
+    }
+    if (!formData.ligneBudgetaireId) {
+      newErrors.ligneBudgetaireId = 'Veuillez sélectionner une ligne budgétaire';
+    }
+    if (!formData.numeroConvention.trim()) {
+      newErrors.numeroConvention = 'Le numéro de convention est requis';
     }
     if (!formData.objet.trim()) {
       newErrors.objet = 'L\'objet de la convention est requis';
@@ -165,12 +175,6 @@ const ConventionForm = ({ isOpen, onClose, onSubmit, convention = null }) => {
     if (!formData.montantTotal || formData.montantTotal <= 0) {
       newErrors.montantTotal = 'Le montant total doit être supérieur à 0';
     }
-    if (!formData.mandatId) {
-      newErrors.mandatId = 'Veuillez sélectionner un mandat';
-    }
-    if (!formData.ligneBudgetaireId) {
-      newErrors.ligneBudgetaireId = 'Veuillez sélectionner une ligne budgétaire';
-    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -182,6 +186,7 @@ const ConventionForm = ({ isOpen, onClose, onSubmit, convention = null }) => {
     if (validateForm()) {
       const processedData = {
         ...formData,
+        numero: formData.numeroConvention, // Utiliser le numéro de convention comme numéro principal
         montantTotal: parseInt(formData.montantTotal),
         montantPaye: 0,
         solde: parseInt(formData.montantTotal),
@@ -195,16 +200,17 @@ const ConventionForm = ({ isOpen, onClose, onSubmit, convention = null }) => {
   const handleClose = () => {
     setFormData({
       numero: '',
+      mandatId: '',
+      ligneBudgetaireId: '',
+      modeSelection: 'appel_offres',
+      typeConvention: 'prestation_service',
+      numeroConvention: '',
       objet: '',
       dateDebut: '',
       dateFin: '',
-      typeConvention: 'prestation_service',
-      modeSelection: 'appel_offres',
       statut: 'active',
       montantTotal: '',
       periodicitePaiement: 'mensuel',
-      mandatId: '',
-      ligneBudgetaireId: '',
       description: ''
     });
     setErrors({});
@@ -220,6 +226,9 @@ const ConventionForm = ({ isOpen, onClose, onSubmit, convention = null }) => {
     { id: 'annuel', label: 'Annuel' }
   ];
 
+  // Récupérer les informations du mandat sélectionné
+  const selectedMandat = mandats.find(m => m.id === formData.mandatId);
+
   return (
     <Modal
       isOpen={isOpen}
@@ -228,27 +237,246 @@ const ConventionForm = ({ isOpen, onClose, onSubmit, convention = null }) => {
       size="xl"
     >
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Informations générales */}
+        {/* Formulaire selon l'ordre spécifié */}
         <div className="space-y-4">
-          <h3 className="text-lg font-medium text-gray-900">Informations générales</h3>
+          <h3 className="text-lg font-medium text-gray-900">Informations de la convention</h3>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Numéro de la convention *
-              </label>
-              <Input
-                name="numero"
-                value={formData.numero}
-                onChange={handleChange}
-                placeholder="CONV-2025-0001"
-                error={errors.numero}
-              />
-            </div>
+          {/* 1. Numéro */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              1. Numéro *
+            </label>
+            <Input
+              name="numero"
+              value={formData.numero}
+              onChange={handleChange}
+              placeholder="1"
+              error={errors.numero}
+            />
+          </div>
+
+          {/* 2. Mandat */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              2. Mandat *
+            </label>
+            <select
+              name="mandatId"
+              value={formData.mandatId}
+              onChange={handleChange}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">Sélectionner un mandat</option>
+              {mandats.map(mandat => (
+                <option key={mandat.id} value={mandat.id}>
+                  {mandat.numero} - {mandat.nomPartenaire}
+                </option>
+              ))}
+            </select>
+            {errors.mandatId && (
+              <p className="mt-1 text-sm text-red-600">{errors.mandatId}</p>
+            )}
+          </div>
+
+          {/* 3. Ligne budgétaire */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              3. Ligne budgétaire *
+            </label>
+            <select
+              name="ligneBudgetaireId"
+              value={formData.ligneBudgetaireId}
+              onChange={handleChange}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">Sélectionner une ligne budgétaire</option>
+              {lignesBudgetaires.map(ligne => (
+                <option key={ligne.id} value={ligne.id}>
+                  {ligne.numero} - {ligne.libelle}
+                </option>
+              ))}
+            </select>
+            {errors.ligneBudgetaireId && (
+              <p className="mt-1 text-sm text-red-600">{errors.ligneBudgetaireId}</p>
+            )}
+          </div>
+
+          {/* 4. Mode de sélection */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              4. Mode de sélection *
+            </label>
+            <select
+              name="modeSelection"
+              value={formData.modeSelection}
+              onChange={handleChange}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              {MODES_SELECTION.map(mode => (
+                <option key={mode.id} value={mode.id}>
+                  {mode.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* 5. Nom du partenaire (lecture seule, basé sur le mandat) */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              5. Nom du partenaire
+            </label>
+            <Input
+              value={selectedMandat?.nomPartenaire || 'Sélectionnez d\'abord un mandat'}
+              readOnly
+              className="bg-gray-50"
+            />
+          </div>
+
+          {/* 6. Représentant légal (lecture seule, basé sur le mandat) */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              6. Représentant légal
+            </label>
+            <Input
+              value={selectedMandat?.representantLegal || 'Sélectionnez d\'abord un mandat'}
+              readOnly
+              className="bg-gray-50"
+            />
+          </div>
+
+          {/* 7. Type de convention */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              7. Type de convention *
+            </label>
+            <select
+              name="typeConvention"
+              value={formData.typeConvention}
+              onChange={handleChange}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              {TYPES_CONVENTIONS.map(type => (
+                <option key={type.id} value={type.id}>
+                  {type.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* 8. Numéro de convention */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              8. Numéro de convention *
+            </label>
+            <Input
+              name="numeroConvention"
+              value={formData.numeroConvention}
+              onChange={handleChange}
+              placeholder="CONV-2025-0001"
+              error={errors.numeroConvention}
+            />
+          </div>
+
+          {/* 9. Objet de convention */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              9. Objet de convention *
+            </label>
+            <Input
+              name="objet"
+              value={formData.objet}
+              onChange={handleChange}
+              placeholder="Maintenance informatique annuelle"
+              error={errors.objet}
+            />
+          </div>
+
+          {/* 10. Début de convention */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              10. Début de convention *
+            </label>
+            <Input
+              type="date"
+              name="dateDebut"
+              value={formData.dateDebut}
+              onChange={handleChange}
+              error={errors.dateDebut}
+            />
+          </div>
+
+          {/* 11. Fin de convention */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              11. Fin de convention *
+            </label>
+            <Input
+              type="date"
+              name="dateFin"
+              value={formData.dateFin}
+              onChange={handleChange}
+              error={errors.dateFin}
+            />
+          </div>
+
+          {/* 12. Durée (calculée automatiquement) */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              12. Durée (jours)
+            </label>
+            <Input
+              value={formData.duree || ''}
+              readOnly
+              className="bg-gray-50"
+              placeholder="Calculé automatiquement"
+            />
+          </div>
+
+          {/* Champs supplémentaires */}
+          <div className="border-t pt-4 mt-6">
+            <h4 className="text-md font-medium text-gray-900 mb-4">Informations complémentaires</h4>
             
-            <div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Montant total (CFA) *
+                </label>
+                <div className="relative">
+                  <Input
+                    name="montantTotal"
+                    value={formData.montantTotal}
+                    onChange={handleChange}
+                    placeholder="120000"
+                    error={errors.montantTotal}
+                  />
+                  <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                    <span className="text-gray-500 text-sm">CFA</span>
+                  </div>
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Périodicité de paiement *
+                </label>
+                <select
+                  name="periodicitePaiement"
+                  value={formData.periodicitePaiement}
+                  onChange={handleChange}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  {periodicitePaiementOptions.map(option => (
+                    <option key={option.id} value={option.id}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="mt-4">
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Statut *
+                Statut
               </label>
               <select
                 name="statut"
@@ -263,237 +491,47 @@ const ConventionForm = ({ isOpen, onClose, onSubmit, convention = null }) => {
                 ))}
               </select>
             </div>
-          </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Objet de la convention *
-            </label>
-            <Input
-              name="objet"
-              value={formData.objet}
-              onChange={handleChange}
-              placeholder="Maintenance informatique annuelle"
-              error={errors.objet}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Description
-            </label>
-            <textarea
-              name="description"
-              value={formData.description}
-              onChange={handleChange}
-              rows={3}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Description détaillée de la convention..."
-            />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
+            <div className="mt-4">
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Type de convention *
+                Description
               </label>
-              <select
-                name="typeConvention"
-                value={formData.typeConvention}
+              <textarea
+                name="description"
+                value={formData.description}
                 onChange={handleChange}
+                rows={3}
                 className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                {TYPES_CONVENTIONS.map(type => (
-                  <option key={type.id} value={type.id}>
-                    {type.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Mode de sélection *
-              </label>
-              <select
-                name="modeSelection"
-                value={formData.modeSelection}
-                onChange={handleChange}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                {MODES_SELECTION.map(mode => (
-                  <option key={mode.id} value={mode.id}>
-                    {mode.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </div>
-
-        {/* Relations */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-medium text-gray-900">Relations</h3>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Mandat *
-              </label>
-              <select
-                name="mandatId"
-                value={formData.mandatId}
-                onChange={handleChange}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">Sélectionner un mandat</option>
-                {mandats.map(mandat => (
-                  <option key={mandat.id} value={mandat.id}>
-                    {mandat.numero} - {mandat.nomPartenaire}
-                  </option>
-                ))}
-              </select>
-              {errors.mandatId && (
-                <p className="mt-1 text-sm text-red-600">{errors.mandatId}</p>
-              )}
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Ligne budgétaire *
-              </label>
-              <select
-                name="ligneBudgetaireId"
-                value={formData.ligneBudgetaireId}
-                onChange={handleChange}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">Sélectionner une ligne budgétaire</option>
-                {lignesBudgetaires.map(ligne => (
-                  <option key={ligne.id} value={ligne.id}>
-                    {ligne.numero} - {ligne.libelle}
-                  </option>
-                ))}
-              </select>
-              {errors.ligneBudgetaireId && (
-                <p className="mt-1 text-sm text-red-600">{errors.ligneBudgetaireId}</p>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Dates et durée */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-medium text-gray-900">Période</h3>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Date de début *
-              </label>
-              <Input
-                type="date"
-                name="dateDebut"
-                value={formData.dateDebut}
-                onChange={handleChange}
-                error={errors.dateDebut}
+                placeholder="Description détaillée de la convention..."
               />
             </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Date de fin *
-              </label>
-              <Input
-                type="date"
-                name="dateFin"
-                value={formData.dateFin}
-                onChange={handleChange}
-                error={errors.dateFin}
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Durée (jours)
-              </label>
-              <Input
-                value={formData.duree || ''}
-                readOnly
-                className="bg-gray-50"
-                placeholder="Calculé automatiquement"
-              />
-            </div>
-          </div>
-        </div>
 
-        {/* Montants et paiements */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-medium text-gray-900">Montants et paiements</h3>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Montant total (CFA) *
-              </label>
-              <div className="relative">
-                <Input
-                  name="montantTotal"
-                  value={formData.montantTotal}
-                  onChange={handleChange}
-                  placeholder="120000"
-                  error={errors.montantTotal}
-                />
-                <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                  <span className="text-gray-500 text-sm">CFA</span>
+            <div className="flex justify-end mt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={generateEcheances}
+                disabled={!formData.montantTotal || !formData.dateDebut || !formData.periodicitePaiement}
+              >
+                Générer les échéances
+              </Button>
+            </div>
+
+            {/* Affichage des échéances */}
+            {echeancesPaiement.length > 0 && (
+              <div className="bg-gray-50 p-4 rounded-md mt-4">
+                <h4 className="text-sm font-medium text-gray-900 mb-3">Échéances de paiement</h4>
+                <div className="space-y-2">
+                  {echeancesPaiement.map((echeance, index) => (
+                    <div key={index} className="flex justify-between items-center text-sm">
+                      <span>Échéance {index + 1} - {new Date(echeance.date).toLocaleDateString('fr-FR')}</span>
+                      <span className="font-medium">{new Intl.NumberFormat('fr-FR').format(echeance.montant)} CFA</span>
+                    </div>
+                  ))}
                 </div>
               </div>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Périodicité de paiement *
-              </label>
-              <select
-                name="periodicitePaiement"
-                value={formData.periodicitePaiement}
-                onChange={handleChange}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                {periodicitePaiementOptions.map(option => (
-                  <option key={option.id} value={option.id}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+            )}
           </div>
-
-          <div className="flex justify-end">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={generateEcheances}
-              disabled={!formData.montantTotal || !formData.dateDebut || !formData.periodicitePaiement}
-            >
-              Générer les échéances
-            </Button>
-          </div>
-
-          {/* Affichage des échéances */}
-          {echeancesPaiement.length > 0 && (
-            <div className="bg-gray-50 p-4 rounded-md">
-              <h4 className="text-sm font-medium text-gray-900 mb-3">Échéances de paiement</h4>
-              <div className="space-y-2">
-                {echeancesPaiement.map((echeance, index) => (
-                  <div key={index} className="flex justify-between items-center text-sm">
-                    <span>Échéance {index + 1} - {new Date(echeance.date).toLocaleDateString('fr-FR')}</span>
-                    <span className="font-medium">{new Intl.NumberFormat('fr-FR').format(echeance.montant)} CFA</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Boutons */}
