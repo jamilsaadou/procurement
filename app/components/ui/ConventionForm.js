@@ -9,7 +9,7 @@ import { TYPES_CONVENTIONS, MODES_SELECTION, STATUTS_CONVENTIONS } from '@/lib/c
 
 const ConventionForm = ({ isOpen, onClose, onSubmit, convention = null }) => {
   const [formData, setFormData] = useState({
-    numero: convention?.numero || '',
+    numero: convention?.numeroConvention || convention?.numero || '',
     mandatId: convention?.mandatId || '',
     ligneBudgetaireId: convention?.ligneBudgetaireId || '',
     modeSelection: convention?.modeSelection || 'appel_offres',
@@ -148,9 +148,7 @@ const ConventionForm = ({ isOpen, onClose, onSubmit, convention = null }) => {
   const validateForm = () => {
     const newErrors = {};
 
-    if (!formData.numero.trim()) {
-      newErrors.numero = 'Le numéro est requis';
-    }
+    // Numéro is now auto-generated from numeroConvention
     if (!formData.mandatId) {
       newErrors.mandatId = 'Veuillez sélectionner un mandat';
     }
@@ -186,7 +184,7 @@ const ConventionForm = ({ isOpen, onClose, onSubmit, convention = null }) => {
     if (validateForm()) {
       const processedData = {
         ...formData,
-        numero: formData.numeroConvention, // Utiliser le numéro de convention comme numéro principal
+        numero: formData.numeroConvention,
         montantTotal: parseInt(formData.montantTotal),
         montantPaye: 0,
         solde: parseInt(formData.montantTotal),
@@ -241,24 +239,10 @@ const ConventionForm = ({ isOpen, onClose, onSubmit, convention = null }) => {
         <div className="space-y-4">
           <h3 className="text-lg font-medium text-gray-900">Informations de la convention</h3>
           
-          {/* 1. Numéro */}
+          {/* 1. Mandat */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              1. Numéro *
-            </label>
-            <Input
-              name="numero"
-              value={formData.numero}
-              onChange={handleChange}
-              placeholder="1"
-              error={errors.numero}
-            />
-          </div>
-
-          {/* 2. Mandat */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              2. Mandat *
+              1. Mandat *
             </label>
             <select
               name="mandatId"
@@ -278,10 +262,10 @@ const ConventionForm = ({ isOpen, onClose, onSubmit, convention = null }) => {
             )}
           </div>
 
-          {/* 3. Ligne budgétaire */}
+          {/* 2. Ligne budgétaire */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              3. Ligne budgétaire *
+              2. Ligne budgétaire *
             </label>
             <select
               name="ligneBudgetaireId"
@@ -301,10 +285,10 @@ const ConventionForm = ({ isOpen, onClose, onSubmit, convention = null }) => {
             )}
           </div>
 
-          {/* 4. Mode de sélection */}
+          {/* 3. Mode de sélection */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              4. Mode de sélection *
+              3. Mode de sélection *
             </label>
             <select
               name="modeSelection"
@@ -320,10 +304,10 @@ const ConventionForm = ({ isOpen, onClose, onSubmit, convention = null }) => {
             </select>
           </div>
 
-          {/* 5. Nom du partenaire (lecture seule, basé sur le mandat) */}
+          {/* 4. Nom du partenaire (lecture seule, basé sur le mandat) */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              5. Nom du partenaire
+              4. Nom du partenaire
             </label>
             <Input
               value={selectedMandat?.nomPartenaire || 'Sélectionnez d\'abord un mandat'}
@@ -332,10 +316,10 @@ const ConventionForm = ({ isOpen, onClose, onSubmit, convention = null }) => {
             />
           </div>
 
-          {/* 6. Représentant légal (lecture seule, basé sur le mandat) */}
+          {/* 5. Représentant légal (lecture seule, basé sur le mandat) */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              6. Représentant légal
+              5. Représentant légal
             </label>
             <Input
               value={selectedMandat?.representantLegal || 'Sélectionnez d\'abord un mandat'}
@@ -344,10 +328,10 @@ const ConventionForm = ({ isOpen, onClose, onSubmit, convention = null }) => {
             />
           </div>
 
-          {/* 7. Type de convention */}
+          {/* 6. Type de convention */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              7. Type de convention *
+              6. Type de convention *
             </label>
             <select
               name="typeConvention"
@@ -363,10 +347,10 @@ const ConventionForm = ({ isOpen, onClose, onSubmit, convention = null }) => {
             </select>
           </div>
 
-          {/* 8. Numéro de convention */}
+          {/* 7. Numéro de convention */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              8. Numéro de convention *
+              7. Numéro de convention *
             </label>
             <Input
               name="numeroConvention"
@@ -377,10 +361,10 @@ const ConventionForm = ({ isOpen, onClose, onSubmit, convention = null }) => {
             />
           </div>
 
-          {/* 9. Objet de convention */}
+          {/* 8. Objet de convention */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              9. Objet de convention *
+              8. Objet de convention *
             </label>
             <Input
               name="objet"
@@ -391,10 +375,10 @@ const ConventionForm = ({ isOpen, onClose, onSubmit, convention = null }) => {
             />
           </div>
 
-          {/* 10. Début de convention */}
+          {/* 9. Début de convention */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              10. Début de convention *
+              9. Début de convention *
             </label>
             <Input
               type="date"
@@ -405,10 +389,10 @@ const ConventionForm = ({ isOpen, onClose, onSubmit, convention = null }) => {
             />
           </div>
 
-          {/* 11. Fin de convention */}
+          {/* 10. Fin de convention */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              11. Fin de convention *
+              10. Fin de convention *
             </label>
             <Input
               type="date"
@@ -419,10 +403,10 @@ const ConventionForm = ({ isOpen, onClose, onSubmit, convention = null }) => {
             />
           </div>
 
-          {/* 12. Durée (calculée automatiquement) */}
+          {/* 11. Durée (calculée automatiquement) */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              12. Durée (jours)
+              11. Durée (jours)
             </label>
             <Input
               value={formData.duree || ''}
