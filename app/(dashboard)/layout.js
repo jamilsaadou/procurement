@@ -11,7 +11,8 @@ import {
   Menu, 
   X,
   Users,
-  BarChart3
+  BarChart3,
+  DollarSign
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { initializeSampleData } from '@/lib/data';
@@ -20,6 +21,7 @@ const navigation = [
   { name: 'Tableau de bord', href: '/', icon: Home },
   { name: 'Conventions', href: '/conventions', icon: FileText },
   { name: 'Mandats', href: '/mandats', icon: ClipboardList },
+  { name: 'Lignes budgétaires', href: '/lignes-budgetaires', icon: DollarSign },
   { name: 'Partenaires', href: '/partenaires', icon: Users },
   { name: 'Rapports', href: '/rapports', icon: BarChart3 },
   { name: 'Configuration', href: '/configuration', icon: Settings },

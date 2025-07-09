@@ -3,24 +3,93 @@
 import { useState } from 'react';
 import Button from './Button';
 import Input from './Input';
-import Modal from './Modal';
 
-const MandatForm = ({ isOpen, onClose, onSubmit, mandat = null }) => {
+export default function MandatForm({ onSubmit, onCancel, initialData = null }) {
   const [formData, setFormData] = useState({
-    numero: mandat?.numero || '',
-    nomPartenaire: mandat?.nomPartenaire || '',
-    representantLegal: mandat?.representantLegal || '',
-    dateSignature: mandat?.dateSignature || '',
-    typeMandat: mandat?.typeMandat || 'prestation_service',
-    statut: mandat?.statut || 'actif',
-    adressePartenaire: mandat?.adressePartenaire || '',
-    emailPartenaire: mandat?.emailPartenaire || '',
-    telephonePartenaire: mandat?.telephonePartenaire || '',
-    numeroSiret: mandat?.numeroSiret || '',
-    formeJuridique: mandat?.formeJuridique || 'SAS'
+    numero: initialData?.numero || '',
+    nom: initialData?.nom || '',
+    titre: initialData?.titre || '',
+    dateDebut: initialData?.dateDebut ? new Date(initialData.dateDebut).toISOString().split('T')[0] : '',
+    dateFin: initialData?.dateFin ? new Date(initialData.dateFin).toISOString().split('T')[0] : '',
+    regionsIntervention: initialData?.regionsIntervention ? JSON.parse(initialData.regionsIntervention) : [],
+    statut: initialData?.statut || 'Actif',
+    description: initialData?.description || ''
   });
 
   const [errors, setErrors] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const regionsDisponibles = [
+    'Niamey',
+    'Zinder', 
+    'Maradi',
+    'Tahoua',
+    'Tillaberi',
+    'Dosso',
+    'Diffa',
+    'Agadez',
+    'Echelle nationale'
+  ];
+
+  const statutsMandat = [
+    'Actif',
+    'Terminé',
+    'Suspendu',
+    'En attente'
+  ];
+
+  const validateForm = () => {
+    const newErrors = {};
+
+    if (!formData.nom.trim()) {
+      newErrors.nom = 'Le nom du mandat est requis';
+    }
+
+    if (!formData.titre.trim()) {
+      newErrors.titre = 'Le titre est requis';
+    }
+
+    if (!formData.dateDebut) {
+      newErrors.dateDebut = 'La date de début est requise';
+    }
+
+    if (!formData.dateFin) {
+      newErrors.dateFin = 'La date de fin est requise';
+    }
+
+    if (formData.dateDebut && formData.dateFin && new Date(formData.dateDebut) >= new Date(formData.dateFin)) {
+      newErrors.dateFin = 'La date de fin doit être postérieure à la date de début';
+    }
+
+    if (formData.regionsIntervention.length === 0) {
+      newErrors.regionsIntervention = 'Au moins une région d\'intervention est requise';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!validateForm()) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const submitData = {
+        ...formData,
+        regionsIntervention: JSON.stringify(formData.regionsIntervention),
+        dateCreation: formData.dateDebut // Pour compatibilité
+      };
+      await onSubmit(submitData);
+    } catch (error) {
+      console.error('Erreur lors de la soumission:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -29,8 +98,8 @@ const MandatForm = ({ isOpen, onClose, onSubmit, mandat = null }) => {
       [name]: value
     }));
     
-    // Effacer l'erreur si le champ est maintenant rempli
-    if (errors[name] && value.trim()) {
+    // Clear error when user starts typing
+    if (errors[name]) {
       setErrors(prev => ({
         ...prev,
         [name]: ''
@@ -38,294 +107,191 @@ const MandatForm = ({ isOpen, onClose, onSubmit, mandat = null }) => {
     }
   };
 
-  const validateForm = () => {
-    const newErrors = {};
-
-    if (!formData.numero.trim()) {
-      newErrors.numero = 'Le numéro du mandat est requis';
-    }
-    if (!formData.nomPartenaire.trim()) {
-      newErrors.nomPartenaire = 'Le nom du partenaire est requis';
-    }
-    if (!formData.representantLegal.trim()) {
-      newErrors.representantLegal = 'Le représentant légal est requis';
-    }
-    if (!formData.dateSignature) {
-      newErrors.dateSignature = 'La date de signature est requise';
-    }
-    if (!formData.adressePartenaire.trim()) {
-      newErrors.adressePartenaire = 'L\'adresse est requise';
-    }
-    if (!formData.emailPartenaire.trim()) {
-      newErrors.emailPartenaire = 'L\'email est requis';
-    } else if (!/\S+@\S+\.\S+/.test(formData.emailPartenaire)) {
-      newErrors.emailPartenaire = 'Format d\'email invalide';
-    }
-    if (!formData.telephonePartenaire.trim()) {
-      newErrors.telephonePartenaire = 'Le téléphone est requis';
-    }
-    if (!formData.numeroSiret.trim()) {
-      newErrors.numeroSiret = 'Le numéro SIRET est requis';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    
-    if (validateForm()) {
-      onSubmit(formData);
-      handleClose();
-    }
-  };
-
-  const handleClose = () => {
-    setFormData({
-      numero: '',
-      nomPartenaire: '',
-      representantLegal: '',
-      dateSignature: '',
-      typeMandat: 'prestation_service',
-      statut: 'actif',
-      adressePartenaire: '',
-      emailPartenaire: '',
-      telephonePartenaire: '',
-      numeroSiret: '',
-      formeJuridique: 'SAS'
+  const handleRegionChange = (region) => {
+    setFormData(prev => {
+      const newRegions = prev.regionsIntervention.includes(region)
+        ? prev.regionsIntervention.filter(r => r !== region)
+        : [...prev.regionsIntervention, region];
+      
+      return {
+        ...prev,
+        regionsIntervention: newRegions
+      };
     });
-    setErrors({});
-    onClose();
+
+    // Clear error when user selects regions
+    if (errors.regionsIntervention) {
+      setErrors(prev => ({
+        ...prev,
+        regionsIntervention: ''
+      }));
+    }
   };
 
-  const typesMandat = [
-    { id: 'prestation_service', label: 'Prestation de service' },
-    { id: 'fourniture', label: 'Fourniture' },
-    { id: 'conseil', label: 'Conseil' },
-    { id: 'maintenance', label: 'Maintenance' },
-    { id: 'formation', label: 'Formation' }
-  ];
-
-  const statutsMandat = [
-    { id: 'actif', label: 'Actif' },
-    { id: 'termine', label: 'Terminé' },
-    { id: 'suspendu', label: 'Suspendu' }
-  ];
-
-  const formesJuridiques = [
-    { id: 'SAS', label: 'SAS' },
-    { id: 'SARL', label: 'SARL' },
-    { id: 'SA', label: 'SA' },
-    { id: 'EURL', label: 'EURL' },
-    { id: 'SNC', label: 'SNC' },
-    { id: 'Auto-entrepreneur', label: 'Auto-entrepreneur' },
-    { id: 'Association', label: 'Association' }
-  ];
+  const calculateDuration = () => {
+    if (formData.dateDebut && formData.dateFin) {
+      const debut = new Date(formData.dateDebut);
+      const fin = new Date(formData.dateFin);
+      const diffTime = Math.abs(fin - debut);
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      const diffMonths = Math.floor(diffDays / 30);
+      const diffYears = Math.floor(diffDays / 365);
+      
+      if (diffYears > 0) {
+        return `${diffYears} an${diffYears > 1 ? 's' : ''} ${diffMonths % 12} mois`;
+      } else if (diffMonths > 0) {
+        return `${diffMonths} mois`;
+      } else {
+        return `${diffDays} jour${diffDays > 1 ? 's' : ''}`;
+      }
+    }
+    return '';
+  };
 
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={handleClose}
-      title={mandat ? 'Modifier le mandat' : 'Nouveau mandat'}
-      size="lg"
-    >
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Informations générales */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-medium text-gray-900">Informations générales</h3>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Numéro du mandat *
-              </label>
-              <Input
-                name="numero"
-                value={formData.numero}
-                onChange={handleChange}
-                placeholder="MAN-2025-0001"
-                error={errors.numero}
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Date de signature *
-              </label>
-              <Input
-                type="date"
-                name="dateSignature"
-                value={formData.dateSignature}
-                onChange={handleChange}
-                error={errors.dateSignature}
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Type de mandat *
-              </label>
-              <select
-                name="typeMandat"
-                value={formData.typeMandat}
-                onChange={handleChange}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                {typesMandat.map(type => (
-                  <option key={type.id} value={type.id}>
-                    {type.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Statut *
-              </label>
-              <select
-                name="statut"
-                value={formData.statut}
-                onChange={handleChange}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                {statutsMandat.map(statut => (
-                  <option key={statut.id} value={statut.id}>
-                    {statut.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <Input
+            label="Numéro du mandat"
+            name="numero"
+            value={formData.numero || 'Généré automatiquement'}
+            readOnly
+            className="bg-gray-50"
+          />
         </div>
 
-        {/* Informations du partenaire */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-medium text-gray-900">Informations du partenaire</h3>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Nom du partenaire *
-              </label>
-              <Input
-                name="nomPartenaire"
-                value={formData.nomPartenaire}
-                onChange={handleChange}
-                placeholder="Entreprise Alpha"
-                error={errors.nomPartenaire}
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Représentant légal *
-              </label>
-              <Input
-                name="representantLegal"
-                value={formData.representantLegal}
-                onChange={handleChange}
-                placeholder="Jean Dupont"
-                error={errors.representantLegal}
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Adresse *
-            </label>
-            <Input
-              name="adressePartenaire"
-              value={formData.adressePartenaire}
-              onChange={handleChange}
-              placeholder="123 Rue de la République, 75001 Paris"
-              error={errors.adressePartenaire}
-            />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Email *
-              </label>
-              <Input
-                type="email"
-                name="emailPartenaire"
-                value={formData.emailPartenaire}
-                onChange={handleChange}
-                placeholder="contact@entreprise.com"
-                error={errors.emailPartenaire}
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Téléphone *
-              </label>
-              <Input
-                name="telephonePartenaire"
-                value={formData.telephonePartenaire}
-                onChange={handleChange}
-                placeholder="01 23 45 67 89"
-                error={errors.telephonePartenaire}
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Numéro SIRET *
-              </label>
-              <Input
-                name="numeroSiret"
-                value={formData.numeroSiret}
-                onChange={handleChange}
-                placeholder="12345678901234"
-                error={errors.numeroSiret}
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Forme juridique *
-              </label>
-              <select
-                name="formeJuridique"
-                value={formData.formeJuridique}
-                onChange={handleChange}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                {formesJuridiques.map(forme => (
-                  <option key={forme.id} value={forme.id}>
-                    {forme.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </div>
-
-        {/* Boutons */}
-        <div className="flex justify-end space-x-3 pt-6 border-t">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={handleClose}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Statut
+          </label>
+          <select
+            name="statut"
+            value={formData.statut}
+            onChange={handleChange}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
-            Annuler
-          </Button>
-          <Button type="submit">
-            {mandat ? 'Modifier' : 'Créer'} le mandat
-          </Button>
+            {statutsMandat.map(statut => (
+              <option key={statut} value={statut}>{statut}</option>
+            ))}
+          </select>
         </div>
-      </form>
-    </Modal>
-  );
-};
+      </div>
 
-export default MandatForm;
+      <div>
+        <Input
+          label="Nom du mandat"
+          name="nom"
+          value={formData.nom}
+          onChange={handleChange}
+          error={errors.nom}
+          placeholder="Ex: Mandat de prestation informatique"
+          required
+        />
+      </div>
+
+      <div>
+        <Input
+          label="Titre"
+          name="titre"
+          value={formData.titre}
+          onChange={handleChange}
+          error={errors.titre}
+          placeholder="Ex: Développement d'applications web"
+          required
+        />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <Input
+            label="Date de début"
+            name="dateDebut"
+            type="date"
+            value={formData.dateDebut}
+            onChange={handleChange}
+            error={errors.dateDebut}
+            required
+          />
+        </div>
+
+        <div>
+          <Input
+            label="Date de fin"
+            name="dateFin"
+            type="date"
+            value={formData.dateFin}
+            onChange={handleChange}
+            error={errors.dateFin}
+            required
+          />
+        </div>
+      </div>
+
+      {calculateDuration() && (
+        <div className="bg-blue-50 p-3 rounded-md">
+          <p className="text-sm text-blue-700">
+            <strong>Durée calculée:</strong> {calculateDuration()}
+          </p>
+        </div>
+      )}
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Régions d'intervention *
+        </label>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+          {regionsDisponibles.map(region => (
+            <label key={region} className="flex items-center space-x-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={formData.regionsIntervention.includes(region)}
+                onChange={() => handleRegionChange(region)}
+                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              <span className="text-sm text-gray-700">{region}</span>
+            </label>
+          ))}
+        </div>
+        {errors.regionsIntervention && (
+          <p className="mt-1 text-sm text-red-600">{errors.regionsIntervention}</p>
+        )}
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Description
+        </label>
+        <textarea
+          name="description"
+          value={formData.description}
+          onChange={handleChange}
+          rows={3}
+          maxLength={191}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          placeholder="Description détaillée du mandat..."
+        />
+        <p className="mt-1 text-sm text-gray-500">
+          {formData.description.length}/191 caractères
+        </p>
+      </div>
+
+      <div className="flex justify-end space-x-3 pt-4">
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={onCancel}
+          disabled={isSubmitting}
+        >
+          Annuler
+        </Button>
+        <Button
+          type="submit"
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? 'Enregistrement...' : (initialData ? 'Modifier' : 'Créer')}
+        </Button>
+      </div>
+    </form>
+  );
+}

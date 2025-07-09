@@ -15,8 +15,17 @@ import {
   Euro,
   TrendingUp,
   Calendar,
-  AlertTriangle
+  AlertTriangle,
+  Clock,
+  PieChart
 } from 'lucide-react';
+import { 
+  BudgetConsumptionChart, 
+  MandatBudgetChart, 
+  ConventionEvolutionChart, 
+  ConventionStatusChart,
+  ProgressBar 
+} from './components/ui/Charts';
 
 // Simple utility functions
 function formatCurrency(amount) {
@@ -115,8 +124,16 @@ const StatCard = ({ title, value, icon: Icon, color = 'blue', subtitle }) => {
   );
 };
 
-const RecentActivity = ({ conventions }) => {
-  const recentConventions = conventions
+const RecentActivity = ({ conventions = [] }) => {
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  if (!isClient) return null;
+
+  const recentConventions = [...conventions]
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
     .slice(0, 5);
 
@@ -161,21 +178,142 @@ const RecentActivity = ({ conventions }) => {
   );
 };
 
+// Composant pour afficher les conventions en retard
+const ConventionsEnRetard = ({ conventions = [] }) => {
+  if (conventions.length === 0) {
+    return (
+      <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+            <Clock className="h-5 w-5 text-red-500 mr-2" />
+            Conventions en retard
+          </h3>
+        </div>
+        <div className="px-6 py-4">
+          <p className="text-sm text-gray-500 text-center py-4">
+            Aucune convention en retard
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
+      <div className="px-6 py-4 border-b border-gray-200">
+        <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+          <Clock className="h-5 w-5 text-red-500 mr-2" />
+          Conventions en retard ({conventions.length})
+        </h3>
+      </div>
+      <div className="px-6 py-4">
+        <div className="space-y-3">
+          {conventions.slice(0, 5).map((convention) => (
+            <div key={convention.id} className="flex items-center justify-between p-3 bg-red-50 rounded-lg border border-red-200">
+              <div className="flex-1">
+                <p className="text-sm font-medium text-gray-900">{convention.objet}</p>
+                <p className="text-xs text-gray-500">
+                  {convention.numero} • {convention.partenaire}
+                </p>
+                <p className="text-xs text-red-600 font-medium">
+                  En retard de {convention.joursRetard} jour{convention.joursRetard > 1 ? 's' : ''}
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-sm font-medium text-gray-900">
+                  {formatCurrency(convention.montantTotal)}
+                </p>
+                <p className="text-xs text-gray-500">
+                  Échéance: {formatDate(convention.dateFin)}
+                </p>
+              </div>
+            </div>
+          ))}
+          {conventions.length > 5 && (
+            <p className="text-xs text-gray-500 text-center pt-2">
+              Et {conventions.length - 5} autre{conventions.length - 5 > 1 ? 's' : ''}...
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default function Dashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [conventions] = useState(sampleConventions);
+  const [dashboardData, setDashboardData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const pathname = usePathname();
 
-  // Calculate stats
-  const stats = {
-    total: conventions.length,
-    active: conventions.filter(c => c.statut === 'active').length,
-    enCours: conventions.filter(c => c.statut === 'en_cours').length,
-    terminee: conventions.filter(c => c.statut === 'terminee').length,
-    montantTotal: conventions.reduce((sum, c) => sum + (c.montantTotal || 0), 0),
-    montantPaye: conventions.reduce((sum, c) => sum + (c.montantPaye || 0), 0),
-    soldeTotal: conventions.reduce((sum, c) => sum + (c.solde || 0), 0)
-  };
+  // Charger les données du tableau de bord
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch('/api/dashboard/stats');
+        if (!response.ok) {
+          throw new Error('Erreur lors du chargement des données');
+        }
+        const data = await response.json();
+        setDashboardData(data);
+      } catch (err) {
+        console.error('Erreur:', err);
+        setError(err.message);
+        // Utiliser les données d'exemple en cas d'erreur
+        setDashboardData({
+          stats: {
+            totalConventions: sampleConventions.length,
+            conventionsActives: sampleConventions.filter(c => c.statut === 'active').length,
+            conventionsEnCours: sampleConventions.filter(c => c.statut === 'en_cours').length,
+            conventionsTerminees: sampleConventions.filter(c => c.statut === 'terminee').length,
+            conventionsEnRetard: 0,
+            totalMandats: 0,
+            mandatsActifs: 0,
+            budgetTotal: 0,
+            budgetConsomme: 0,
+            budgetRestant: 0,
+            montantTotalConventions: sampleConventions.reduce((sum, c) => sum + c.montantTotal, 0),
+            montantTotalPaiements: 0
+          },
+          conventionsEnRetard: [],
+          consommationBudget: [],
+          repartitionBudgetParMandat: [],
+          chartData: {
+            consommationParLigne: [],
+            repartitionParMandat: [],
+            evolutionConventions: [],
+            statutConventions: [
+              { name: 'Actives', value: 1, color: '#10B981' },
+              { name: 'En cours', value: 1, color: '#3B82F6' },
+              { name: 'Terminées', value: 1, color: '#6B7280' },
+              { name: 'En retard', value: 0, color: '#EF4444' }
+            ]
+          }
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex h-screen bg-gray-100">
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Chargement du tableau de bord...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const stats = dashboardData?.stats || {};
 
   return (
     <div className="flex h-screen bg-gray-100">
@@ -278,73 +416,179 @@ export default function Dashboard() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <StatCard
                 title="Total Conventions"
-                value={stats.total}
+                value={stats.totalConventions || 0}
                 icon={FileText}
                 color="blue"
-                subtitle={`${stats.active} actives`}
+                subtitle={`${stats.conventionsActives || 0} actives`}
               />
               <StatCard
-                title="Total Mandats"
-                value="0"
-                icon={ClipboardList}
-                color="green"
-                subtitle="0 validés"
+                title="Conventions en retard"
+                value={stats.conventionsEnRetard || 0}
+                icon={Clock}
+                color="red"
+                subtitle="À traiter"
               />
               <StatCard
-                title="Montant Total"
-                value={formatCurrency(stats.montantTotal)}
+                title="Budget Total"
+                value={formatCurrency(stats.budgetTotal || 0)}
                 icon={Euro}
                 color="purple"
-                subtitle="Toutes conventions"
+                subtitle="Toutes lignes"
               />
               <StatCard
-                title="Solde Restant"
-                value={formatCurrency(stats.soldeTotal)}
+                title="Budget Consommé"
+                value={formatCurrency(stats.budgetConsomme || 0)}
                 icon={TrendingUp}
-                color={stats.soldeTotal > 0 ? "yellow" : "green"}
-                subtitle="À payer"
+                color="yellow"
+                subtitle={`${stats.budgetTotal > 0 ? Math.round((stats.budgetConsomme / stats.budgetTotal) * 100) : 0}%`}
               />
             </div>
 
-            {/* Secondary Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <StatCard
-                title="Conventions en cours"
-                value={stats.enCours}
-                icon={Calendar}
-                color="blue"
-              />
-              <StatCard
-                title="Montant payé"
-                value={formatCurrency(stats.montantPaye)}
-                icon={Euro}
-                color="green"
-              />
-              <StatCard
-                title="Conventions terminées"
-                value={stats.terminee}
-                icon={FileText}
-                color="gray"
-              />
-            </div>
+            {/* Conventions en retard */}
+            {dashboardData?.conventionsEnRetard && (
+              <ConventionsEnRetard conventions={dashboardData.conventionsEnRetard} />
+            )}
 
-            {/* Activity */}
+            {/* Charts Section */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <RecentActivity conventions={conventions} />
+              {/* Consommation de budget */}
               <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
                 <div className="px-6 py-4 border-b border-gray-200">
                   <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-                    <AlertTriangle className="h-5 w-5 text-yellow-500 mr-2" />
-                    Échéances à venir
+                    <BarChart3 className="h-5 w-5 text-blue-500 mr-2" />
+                    Consommation de Budget
                   </h3>
                 </div>
-                <div className="px-6 py-4">
-                  <p className="text-sm text-gray-500 text-center py-4">
-                    Aucune échéance dans les 30 prochains jours
-                  </p>
+                <div className="p-6">
+                  <BudgetConsumptionChart data={dashboardData?.chartData?.consommationParLigne || []} />
+                </div>
+              </div>
+
+              {/* Répartition par mandat */}
+              <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
+                <div className="px-6 py-4 border-b border-gray-200">
+                  <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                    <PieChart className="h-5 w-5 text-green-500 mr-2" />
+                    Répartition Budget par Mandat
+                  </h3>
+                </div>
+                <div className="p-6">
+                  <MandatBudgetChart data={dashboardData?.chartData?.repartitionParMandat || []} />
                 </div>
               </div>
             </div>
+
+            {/* Additional Charts */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Statut des conventions */}
+              <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
+                <div className="px-6 py-4 border-b border-gray-200">
+                  <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                    <PieChart className="h-5 w-5 text-purple-500 mr-2" />
+                    Statut des Conventions
+                  </h3>
+                </div>
+                <div className="p-6">
+                  <ConventionStatusChart data={dashboardData?.chartData?.statutConventions || []} />
+                </div>
+              </div>
+
+              {/* Évolution des conventions */}
+              <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
+                <div className="px-6 py-4 border-b border-gray-200">
+                  <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                    <TrendingUp className="h-5 w-5 text-indigo-500 mr-2" />
+                    Évolution des Conventions
+                  </h3>
+                </div>
+                <div className="p-6">
+                  <ConventionEvolutionChart data={dashboardData?.chartData?.evolutionConventions || []} />
+                </div>
+              </div>
+            </div>
+
+            {/* Budget Progress Bars */}
+            {dashboardData?.consommationBudget && dashboardData.consommationBudget.length > 0 && (
+              <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
+                <div className="px-6 py-4 border-b border-gray-200">
+                  <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                    <BarChart3 className="h-5 w-5 text-orange-500 mr-2" />
+                    Détail Consommation par Ligne Budgétaire
+                  </h3>
+                </div>
+                <div className="p-6">
+                  <div className="space-y-6">
+                    {dashboardData.consommationBudget.slice(0, 5).map((ligne) => (
+                      <div key={ligne.id}>
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="text-sm font-medium text-gray-900">{ligne.libelle}</span>
+                          <span className="text-sm text-gray-500">{ligne.numero}</span>
+                        </div>
+                        <ProgressBar
+                          value={ligne.montantConsomme}
+                          max={ligne.montantInitial}
+                          label={`${ligne.tauxConsommation}% consommé`}
+                          color={ligne.tauxConsommation > 80 ? 'red' : ligne.tauxConsommation > 60 ? 'yellow' : 'green'}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Activity and Recent */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <RecentActivity conventions={sampleConventions} />
+              
+              {/* Résumé des mandats */}
+              <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
+                <div className="px-6 py-4 border-b border-gray-200">
+                  <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                    <ClipboardList className="h-5 w-5 text-green-500 mr-2" />
+                    Résumé des Mandats
+                  </h3>
+                </div>
+                <div className="px-6 py-4">
+                  {dashboardData?.repartitionBudgetParMandat && dashboardData.repartitionBudgetParMandat.length > 0 ? (
+                    <div className="space-y-4">
+                      {dashboardData.repartitionBudgetParMandat.slice(0, 3).map((mandat) => (
+                        <div key={mandat.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                          <div className="flex-1">
+                            <p className="text-sm font-medium text-gray-900">{mandat.nom}</p>
+                            <p className="text-xs text-gray-500">
+                              {mandat.numero} • {mandat.nombreConventions} convention{mandat.nombreConventions > 1 ? 's' : ''}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm font-medium text-gray-900">
+                              {formatCurrency(mandat.budgetTotal)}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-500 text-center py-4">
+                      Aucun mandat avec budget alloué
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {error && (
+              <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4">
+                <div className="flex">
+                  <AlertTriangle className="h-5 w-5 text-yellow-400" />
+                  <div className="ml-3">
+                    <p className="text-sm text-yellow-800">
+                      Attention: Certaines données peuvent ne pas être à jour. {error}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </main>
       </div>

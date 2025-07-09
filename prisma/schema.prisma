@@ -1,0 +1,96 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Partenaire {
+  id                String       @id @default(uuid())
+  nom               String
+  statutJuridique   String
+  representantLegal String
+  adresse           String
+  email             String
+  telephone         String
+  fax               String?
+  autresInfos       String?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  conventions       Convention[]
+}
+
+model Convention {
+  id                  String          @id @default(uuid())
+  numero              String          @unique
+  mandatId            Int
+  ligneBudgetaireId   String
+  modeSelection       String
+  typeConvention      String
+  numeroConvention    String          @unique
+  objet               String
+  dateDebut           DateTime
+  dateFin             DateTime
+  statut              String
+  montantTotal        Float
+  periodicitePaiement String
+  description         String?
+  duree               Int?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+  partenaireId        String
+  ligneBudgetaire     LigneBudgetaire @relation(fields: [ligneBudgetaireId], references: [id])
+  mandat              Mandat          @relation(fields: [mandatId], references: [id])
+  partenaire          Partenaire      @relation(fields: [partenaireId], references: [id])
+  paiements           Paiement[]
+
+  @@index([ligneBudgetaireId], map: "Convention_ligneBudgetaireId_fkey")
+  @@index([mandatId], map: "Convention_mandatId_fkey")
+  @@index([partenaireId], map: "Convention_partenaireId_fkey")
+}
+
+model Mandat {
+  id                Int          @id @default(autoincrement())
+  numero            String?      @unique
+  nom               String       // Nom du mandat
+  dateDebut         DateTime     // Début de la période d'activité
+  dateFin           DateTime     // Fin de la période d'activité
+  regionsIntervention String     // JSON array des régions d'intervention
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  statut            String
+  titre             String       // Garder pour compatibilité
+  dateCreation      DateTime     // Garder pour compatibilité
+  description       String?
+  conventions       Convention[]
+}
+
+model LigneBudgetaire {
+  id             String       @id @default(uuid())
+  numero         String       @unique
+  libelle        String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  description    String?
+  montantInitial Float        @default(0)
+  montantRestant Float        @default(0)
+  conventions    Convention[]
+}
+
+model Paiement {
+  id            String     @id @default(uuid())
+  conventionId  String
+  pourcentage   Float
+  montant       Float
+  datePrevue    DateTime?
+  dateEffective DateTime?
+  statut        String     @default("En attente")
+  description   String?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  convention    Convention @relation(fields: [conventionId], references: [id])
+
+  @@index([conventionId], map: "Paiement_conventionId_fkey")
+}

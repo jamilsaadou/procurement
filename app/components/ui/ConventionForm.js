@@ -3,174 +3,128 @@
 import { useState, useEffect } from 'react';
 import Button from './Button';
 import Input from './Input';
-import Modal from './Modal';
-import { mandatsAPI, lignesBudgetairesAPI } from '@/lib/data';
-import { TYPES_CONVENTIONS, MODES_SELECTION, STATUTS_CONVENTIONS } from '@/lib/constants';
 
-const ConventionForm = ({ isOpen, onClose, onSubmit, convention = null }) => {
+export default function ConventionForm({ onSubmit, onCancel, initialData = null }) {
   const [formData, setFormData] = useState({
-    numero: convention?.numeroConvention || convention?.numero || '',
-    mandatId: convention?.mandatId || '',
-    ligneBudgetaireId: convention?.ligneBudgetaireId || '',
-    modeSelection: convention?.modeSelection || 'appel_offres',
-    typeConvention: convention?.typeConvention || 'prestation_service',
-    numeroConvention: convention?.numeroConvention || convention?.numero || '',
-    objet: convention?.objet || '',
-    dateDebut: convention?.dateDebut || '',
-    dateFin: convention?.dateFin || '',
-    statut: convention?.statut || 'active',
-    montantTotal: convention?.montantTotal || '',
-    periodicitePaiement: convention?.periodicitePaiement || 'mensuel',
-    description: convention?.description || ''
+    numero: '',
+    mandatId: '',
+    ligneBudgetaireId: '',
+    partenaireId: '',
+    modeSelection: 'Appel d\'offres',
+    typeConvention: 'Prestation',
+    objet: '',
+    dateDebut: '',
+    dateFin: '',
+    montantTotal: '',
+    statut: 'Brouillon',
+    description: ''
   });
 
   const [errors, setErrors] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [mandats, setMandats] = useState([]);
   const [lignesBudgetaires, setLignesBudgetaires] = useState([]);
-  const [echeancesPaiement, setEcheancesPaiement] = useState(
-    convention?.echeancesPaiement || []
-  );
+  const [partenaires, setPartenaires] = useState([]);
 
   useEffect(() => {
-    // Charger les mandats et lignes budgétaires
-    setMandats(mandatsAPI.getAll());
-    setLignesBudgetaires(lignesBudgetairesAPI.getAll());
+    fetchData();
   }, []);
 
   useEffect(() => {
-    // Calculer la durée automatiquement
-    if (formData.dateDebut && formData.dateFin) {
-      const debut = new Date(formData.dateDebut);
-      const fin = new Date(formData.dateFin);
-      const diffTime = Math.abs(fin - debut);
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    if (initialData) {
+      setFormData({
+        numero: initialData.numero || '',
+        mandatId: initialData.mandatId || '',
+        ligneBudgetaireId: initialData.ligneBudgetaireId || '',
+        partenaireId: initialData.partenaireId || '',
+        modeSelection: initialData.modeSelection || 'Appel d\'offres',
+        typeConvention: initialData.typeConvention || 'Prestation',
+        objet: initialData.objet || '',
+        dateDebut: initialData.dateDebut ? new Date(initialData.dateDebut).toISOString().split('T')[0] : '',
+        dateFin: initialData.dateFin ? new Date(initialData.dateFin).toISOString().split('T')[0] : '',
+        montantTotal: initialData.montantTotal?.toString() || '',
+        statut: initialData.statut || 'Brouillon',
+        description: initialData.description || ''
+      });
+    } else {
+      // Générer un seul numéro automatique pour une nouvelle convention
+      const generateNumero = () => {
+        const year = new Date().getFullYear();
+        const timestamp = Date.now().toString().slice(-6);
+        return `CONV-${year}-${timestamp}`;
+      };
       
       setFormData(prev => ({
         ...prev,
-        duree: diffDays
+        numero: generateNumero()
       }));
     }
-  }, [formData.dateDebut, formData.dateFin]);
+  }, [initialData]);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    let processedValue = value;
+  const fetchData = async () => {
+    try {
+      const [mandatsRes, lignesRes, partenairesRes] = await Promise.all([
+        fetch('/api/mandats'),
+        fetch('/api/lignes-budgetaires'),
+        fetch('/api/partenaires')
+      ]);
 
-    // Traitement spécial pour les montants
-    if (name === 'montantTotal') {
-      processedValue = value.replace(/[^\d]/g, ''); // Garder seulement les chiffres
-    }
-
-    setFormData(prev => ({
-      ...prev,
-      [name]: processedValue
-    }));
-    
-    // Effacer l'erreur si le champ est maintenant rempli
-    if (errors[name] && value.trim()) {
-      setErrors(prev => ({
-        ...prev,
-        [name]: ''
-      }));
-    }
-  };
-
-  const generateEcheances = () => {
-    if (!formData.montantTotal || !formData.dateDebut || !formData.periodicitePaiement) {
-      return;
-    }
-
-    const montantTotal = parseInt(formData.montantTotal);
-    const dateDebut = new Date(formData.dateDebut);
-    const dateFin = formData.dateFin ? new Date(formData.dateFin) : null;
-    
-    let echeances = [];
-    let currentDate = new Date(dateDebut);
-    let remainingAmount = montantTotal;
-
-    if (formData.periodicitePaiement === 'unique') {
-      echeances.push({
-        date: formData.dateDebut,
-        montant: montantTotal,
-        statut: 'en_attente'
-      });
-    } else {
-      let increment;
-      let maxEcheances;
-
-      switch (formData.periodicitePaiement) {
-        case 'mensuel':
-          increment = 1;
-          maxEcheances = 12;
-          break;
-        case 'trimestriel':
-          increment = 3;
-          maxEcheances = 4;
-          break;
-        case 'semestriel':
-          increment = 6;
-          maxEcheances = 2;
-          break;
-        case 'annuel':
-          increment = 12;
-          maxEcheances = 1;
-          break;
-        default:
-          increment = 1;
-          maxEcheances = 12;
+      if (mandatsRes.ok) {
+        const mandatsData = await mandatsRes.json();
+        setMandats(mandatsData);
       }
 
-      const montantParEcheance = Math.floor(montantTotal / maxEcheances);
-      
-      for (let i = 0; i < maxEcheances; i++) {
-        const isLastEcheance = i === maxEcheances - 1;
-        const montant = isLastEcheance ? remainingAmount : montantParEcheance;
-        
-        echeances.push({
-          date: currentDate.toISOString().split('T')[0],
-          montant: montant,
-          statut: 'en_attente'
-        });
-
-        remainingAmount -= montant;
-        currentDate.setMonth(currentDate.getMonth() + increment);
-
-        // Arrêter si on dépasse la date de fin
-        if (dateFin && currentDate > dateFin) {
-          break;
-        }
+      if (lignesRes.ok) {
+        const lignesData = await lignesRes.json();
+        setLignesBudgetaires(lignesData);
       }
-    }
 
-    setEcheancesPaiement(echeances);
+      if (partenairesRes.ok) {
+        const partenairesData = await partenairesRes.json();
+        setPartenaires(partenairesData);
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement des données:', error);
+    }
   };
 
   const validateForm = () => {
     const newErrors = {};
 
-    // Numéro is now auto-generated from numeroConvention
+    if (!formData.numero.trim()) {
+      newErrors.numero = 'Le numéro est requis';
+    }
+
     if (!formData.mandatId) {
-      newErrors.mandatId = 'Veuillez sélectionner un mandat';
+      newErrors.mandatId = 'Le mandat est requis';
     }
+
     if (!formData.ligneBudgetaireId) {
-      newErrors.ligneBudgetaireId = 'Veuillez sélectionner une ligne budgétaire';
+      newErrors.ligneBudgetaireId = 'La ligne budgétaire est requise';
     }
-    if (!formData.numeroConvention.trim()) {
-      newErrors.numeroConvention = 'Le numéro de convention est requis';
+
+    if (!formData.partenaireId) {
+      newErrors.partenaireId = 'Le partenaire est requis';
     }
+
+
     if (!formData.objet.trim()) {
-      newErrors.objet = 'L\'objet de la convention est requis';
+      newErrors.objet = 'L\'objet est requis';
     }
+
     if (!formData.dateDebut) {
       newErrors.dateDebut = 'La date de début est requise';
     }
+
     if (!formData.dateFin) {
       newErrors.dateFin = 'La date de fin est requise';
     }
+
     if (formData.dateDebut && formData.dateFin && new Date(formData.dateDebut) >= new Date(formData.dateFin)) {
       newErrors.dateFin = 'La date de fin doit être postérieure à la date de début';
     }
-    if (!formData.montantTotal || formData.montantTotal <= 0) {
+
+    if (!formData.montantTotal || parseFloat(formData.montantTotal) <= 0) {
       newErrors.montantTotal = 'Le montant total doit être supérieur à 0';
     }
 
@@ -178,362 +132,300 @@ const ConventionForm = ({ isOpen, onClose, onSubmit, convention = null }) => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (validateForm()) {
-      const processedData = {
+    if (!validateForm()) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const submitData = {
         ...formData,
-        numero: formData.numeroConvention,
-        montantTotal: parseInt(formData.montantTotal),
-        montantPaye: 0,
-        solde: parseInt(formData.montantTotal),
-        echeancesPaiement: echeancesPaiement
+        mandatId: parseInt(formData.mandatId),
+        montantTotal: parseFloat(formData.montantTotal)
       };
-      onSubmit(processedData);
-      handleClose();
+      await onSubmit(submitData);
+    } catch (error) {
+      console.error('Erreur lors de la soumission:', error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleClose = () => {
-    setFormData({
-      numero: '',
-      mandatId: '',
-      ligneBudgetaireId: '',
-      modeSelection: 'appel_offres',
-      typeConvention: 'prestation_service',
-      numeroConvention: '',
-      objet: '',
-      dateDebut: '',
-      dateFin: '',
-      statut: 'active',
-      montantTotal: '',
-      periodicitePaiement: 'mensuel',
-      description: ''
-    });
-    setErrors({});
-    setEcheancesPaiement([]);
-    onClose();
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+    
+    // Clear error when user starts typing
+    if (errors[name]) {
+      setErrors(prev => ({
+        ...prev,
+        [name]: ''
+      }));
+    }
   };
 
-  const periodicitePaiementOptions = [
-    { id: 'unique', label: 'Paiement unique' },
-    { id: 'mensuel', label: 'Mensuel' },
-    { id: 'trimestriel', label: 'Trimestriel' },
-    { id: 'semestriel', label: 'Semestriel' },
-    { id: 'annuel', label: 'Annuel' }
+  const modesSelection = [
+    'Appel d\'offres',
+    'Consultation',
+    'Gré à gré',
+    'Concours',
+    'Marché négocié'
   ];
 
-  // Récupérer les informations du mandat sélectionné
-  const selectedMandat = mandats.find(m => m.id === formData.mandatId);
+  const typesConvention = [
+    'Prestation',
+    'Fourniture',
+    'Travaux',
+    'Service',
+    'Maintenance'
+  ];
+
+
+  const statutsConvention = [
+    'Brouillon',
+    'Active',
+    'En cours',
+    'Terminée',
+    'Résiliée'
+  ];
 
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={handleClose}
-      title={convention ? 'Modifier la convention' : 'Nouvelle convention'}
-      size="xl"
-    >
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Formulaire selon l'ordre spécifié */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-medium text-gray-900">Informations de la convention</h3>
-          
-          {/* 1. Mandat */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              1. Mandat *
-            </label>
-            <select
-              name="mandatId"
-              value={formData.mandatId}
-              onChange={handleChange}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="">Sélectionner un mandat</option>
-              {mandats.map(mandat => (
-                <option key={mandat.id} value={mandat.id}>
-                  {mandat.numero} - {mandat.nomPartenaire}
-                </option>
-              ))}
-            </select>
-            {errors.mandatId && (
-              <p className="mt-1 text-sm text-red-600">{errors.mandatId}</p>
-            )}
-          </div>
-
-          {/* 2. Ligne budgétaire */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              2. Ligne budgétaire *
-            </label>
-            <select
-              name="ligneBudgetaireId"
-              value={formData.ligneBudgetaireId}
-              onChange={handleChange}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="">Sélectionner une ligne budgétaire</option>
-              {lignesBudgetaires.map(ligne => (
-                <option key={ligne.id} value={ligne.id}>
-                  {ligne.numero} - {ligne.libelle}
-                </option>
-              ))}
-            </select>
-            {errors.ligneBudgetaireId && (
-              <p className="mt-1 text-sm text-red-600">{errors.ligneBudgetaireId}</p>
-            )}
-          </div>
-
-          {/* 3. Mode de sélection */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              3. Mode de sélection *
-            </label>
-            <select
-              name="modeSelection"
-              value={formData.modeSelection}
-              onChange={handleChange}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              {MODES_SELECTION.map(mode => (
-                <option key={mode.id} value={mode.id}>
-                  {mode.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* 4. Nom du partenaire (lecture seule, basé sur le mandat) */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              4. Nom du partenaire
-            </label>
-            <Input
-              value={selectedMandat?.nomPartenaire || 'Sélectionnez d\'abord un mandat'}
-              readOnly
-              className="bg-gray-50"
-            />
-          </div>
-
-          {/* 5. Représentant légal (lecture seule, basé sur le mandat) */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              5. Représentant légal
-            </label>
-            <Input
-              value={selectedMandat?.representantLegal || 'Sélectionnez d\'abord un mandat'}
-              readOnly
-              className="bg-gray-50"
-            />
-          </div>
-
-          {/* 6. Type de convention */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              6. Type de convention *
-            </label>
-            <select
-              name="typeConvention"
-              value={formData.typeConvention}
-              onChange={handleChange}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              {TYPES_CONVENTIONS.map(type => (
-                <option key={type.id} value={type.id}>
-                  {type.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* 7. Numéro de convention */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              7. Numéro de convention *
-            </label>
-            <Input
-              name="numeroConvention"
-              value={formData.numeroConvention}
-              onChange={handleChange}
-              placeholder="CONV-2025-0001"
-              error={errors.numeroConvention}
-            />
-          </div>
-
-          {/* 8. Objet de convention */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              8. Objet de convention *
-            </label>
-            <Input
-              name="objet"
-              value={formData.objet}
-              onChange={handleChange}
-              placeholder="Maintenance informatique annuelle"
-              error={errors.objet}
-            />
-          </div>
-
-          {/* 9. Début de convention */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              9. Début de convention *
-            </label>
-            <Input
-              type="date"
-              name="dateDebut"
-              value={formData.dateDebut}
-              onChange={handleChange}
-              error={errors.dateDebut}
-            />
-          </div>
-
-          {/* 10. Fin de convention */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              10. Fin de convention *
-            </label>
-            <Input
-              type="date"
-              name="dateFin"
-              value={formData.dateFin}
-              onChange={handleChange}
-              error={errors.dateFin}
-            />
-          </div>
-
-          {/* 11. Durée (calculée automatiquement) */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              11. Durée (jours)
-            </label>
-            <Input
-              value={formData.duree || ''}
-              readOnly
-              className="bg-gray-50"
-              placeholder="Calculé automatiquement"
-            />
-          </div>
-
-          {/* Champs supplémentaires */}
-          <div className="border-t pt-4 mt-6">
-            <h4 className="text-md font-medium text-gray-900 mb-4">Informations complémentaires</h4>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Montant total (CFA) *
-                </label>
-                <div className="relative">
-                  <Input
-                    name="montantTotal"
-                    value={formData.montantTotal}
-                    onChange={handleChange}
-                    placeholder="120000"
-                    error={errors.montantTotal}
-                  />
-                  <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                    <span className="text-gray-500 text-sm">CFA</span>
-                  </div>
-                </div>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Périodicité de paiement *
-                </label>
-                <select
-                  name="periodicitePaiement"
-                  value={formData.periodicitePaiement}
-                  onChange={handleChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  {periodicitePaiementOptions.map(option => (
-                    <option key={option.id} value={option.id}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="mt-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Statut
-              </label>
-              <select
-                name="statut"
-                value={formData.statut}
-                onChange={handleChange}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                {STATUTS_CONVENTIONS.map(statut => (
-                  <option key={statut.id} value={statut.id}>
-                    {statut.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="mt-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Description
-              </label>
-              <textarea
-                name="description"
-                value={formData.description}
-                onChange={handleChange}
-                rows={3}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Description détaillée de la convention..."
-              />
-            </div>
-
-            <div className="flex justify-end mt-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={generateEcheances}
-                disabled={!formData.montantTotal || !formData.dateDebut || !formData.periodicitePaiement}
-              >
-                Générer les échéances
-              </Button>
-            </div>
-
-            {/* Affichage des échéances */}
-            {echeancesPaiement.length > 0 && (
-              <div className="bg-gray-50 p-4 rounded-md mt-4">
-                <h4 className="text-sm font-medium text-gray-900 mb-3">Échéances de paiement</h4>
-                <div className="space-y-2">
-                  {echeancesPaiement.map((echeance, index) => (
-                    <div key={index} className="flex justify-between items-center text-sm">
-                      <span>Échéance {index + 1} - {new Date(echeance.date).toLocaleDateString('fr-FR')}</span>
-                      <span className="font-medium">{new Intl.NumberFormat('fr-FR').format(echeance.montant)} CFA</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <Input
+            label="N° Convention"
+            name="numero"
+            value={formData.numero}
+            onChange={handleChange}
+            error={errors.numero}
+            required
+          />
         </div>
 
-        {/* Boutons */}
-        <div className="flex justify-end space-x-3 pt-6 border-t">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={handleClose}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Mandat *
+          </label>
+          <select
+            name="mandatId"
+            value={formData.mandatId}
+            onChange={handleChange}
+            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              errors.mandatId ? 'border-red-500' : 'border-gray-300'
+            }`}
+            required
           >
-            Annuler
-          </Button>
-          <Button type="submit">
-            {convention ? 'Modifier' : 'Créer'} la convention
-          </Button>
+            <option value="">Sélectionner un mandat</option>
+            {mandats.map(mandat => (
+              <option key={mandat.id} value={mandat.id}>
+                {mandat.titre}
+              </option>
+            ))}
+          </select>
+          {errors.mandatId && (
+            <p className="mt-1 text-sm text-red-600">{errors.mandatId}</p>
+          )}
         </div>
-      </form>
-    </Modal>
-  );
-};
 
-export default ConventionForm;
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Ligne budgétaire *
+          </label>
+          <select
+            name="ligneBudgetaireId"
+            value={formData.ligneBudgetaireId}
+            onChange={handleChange}
+            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              errors.ligneBudgetaireId ? 'border-red-500' : 'border-gray-300'
+            }`}
+            required
+          >
+            <option value="">Sélectionner une ligne budgétaire</option>
+            {lignesBudgetaires.map(ligne => (
+              <option key={ligne.id} value={ligne.id}>
+                {ligne.numero} - {ligne.libelle}
+              </option>
+            ))}
+          </select>
+          {errors.ligneBudgetaireId && (
+            <p className="mt-1 text-sm text-red-600">{errors.ligneBudgetaireId}</p>
+          )}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Partenaire *
+          </label>
+          <select
+            name="partenaireId"
+            value={formData.partenaireId}
+            onChange={handleChange}
+            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              errors.partenaireId ? 'border-red-500' : 'border-gray-300'
+            }`}
+            required
+          >
+            <option value="">Sélectionner un partenaire</option>
+            {partenaires.map(partenaire => (
+              <option key={partenaire.id} value={partenaire.id}>
+                {partenaire.nom} - {partenaire.representantLegal}
+              </option>
+            ))}
+          </select>
+          {errors.partenaireId && (
+            <p className="mt-1 text-sm text-red-600">{errors.partenaireId}</p>
+          )}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Mode de sélection *
+          </label>
+          <select
+            name="modeSelection"
+            value={formData.modeSelection}
+            onChange={handleChange}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            required
+          >
+            {modesSelection.map(mode => (
+              <option key={mode} value={mode}>{mode}</option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Type de convention *
+          </label>
+          <select
+            name="typeConvention"
+            value={formData.typeConvention}
+            onChange={handleChange}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            required
+          >
+            {typesConvention.map(type => (
+              <option key={type} value={type}>{type}</option>
+            ))}
+          </select>
+        </div>
+
+
+        <div>
+          <Input
+            label="Date de début"
+            name="dateDebut"
+            type="date"
+            value={formData.dateDebut}
+            onChange={handleChange}
+            error={errors.dateDebut}
+            required
+          />
+        </div>
+
+        <div>
+          <Input
+            label="Date de fin"
+            name="dateFin"
+            type="date"
+            value={formData.dateFin}
+            onChange={handleChange}
+            error={errors.dateFin}
+            required
+          />
+        </div>
+
+        <div>
+          <Input
+            label="Montant total (FCFA)"
+            name="montantTotal"
+            type="number"
+            step="0.01"
+            min="0"
+            value={formData.montantTotal}
+            onChange={handleChange}
+            error={errors.montantTotal}
+            required
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Statut
+          </label>
+          <select
+            name="statut"
+            value={formData.statut}
+            onChange={handleChange}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            {statutsConvention.map(statut => (
+              <option key={statut} value={statut}>{statut}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div>
+        <Input
+          label="Objet de la convention"
+          name="objet"
+          value={formData.objet}
+          onChange={handleChange}
+          error={errors.objet}
+          required
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Description
+          <span className="text-sm text-gray-500 ml-2">
+            ({formData.description.length}/191 caractères)
+          </span>
+        </label>
+        <textarea
+          name="description"
+          value={formData.description}
+          onChange={handleChange}
+          rows={3}
+          maxLength={191}
+          className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+            formData.description.length > 191 ? 'border-red-500' : 'border-gray-300'
+          }`}
+          placeholder="Description détaillée de la convention..."
+        />
+        {formData.description.length > 191 && (
+          <p className="mt-1 text-sm text-red-600">
+            La description ne peut pas dépasser 191 caractères
+          </p>
+        )}
+      </div>
+
+      <div className="flex justify-end space-x-3 pt-4">
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={onCancel}
+          disabled={isSubmitting}
+        >
+          Annuler
+        </Button>
+        <Button
+          type="submit"
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? 'Enregistrement...' : (initialData ? 'Modifier' : 'Créer')}
+        </Button>
+      </div>
+    </form>
+  );
+}

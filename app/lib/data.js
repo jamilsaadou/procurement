@@ -100,31 +100,32 @@ export const conventionsAPI = {
 
 // Gestion des mandats
 export const mandatsAPI = {
-  getAll() {
-    return getFromStorage(STORAGE_KEYS.MANDATS);
+  async getAll() {
+    const response = await fetch('/api/mandats');
+    if (!response.ok) throw new Error('Failed to fetch mandats');
+    return await response.json();
   },
 
-  getById(id) {
-    const mandats = this.getAll();
+  async getById(id) {
+    const mandats = await this.getAll();
     return mandats.find(mandat => mandat.id === id);
   },
 
-  getByConventionId(conventionId) {
-    const mandats = this.getAll();
+  async getByConventionId(conventionId) {
+    const mandats = await this.getAll();
     return mandats.filter(mandat => mandat.conventionId === conventionId);
   },
 
-  create(mandat) {
-    const mandats = this.getAll();
-    const newMandat = {
-      ...mandat,
-      id: `mandat_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-    mandats.push(newMandat);
-    saveToStorage(STORAGE_KEYS.MANDATS, mandats);
-    return newMandat;
+  async create(mandat) {
+    const response = await fetch('/api/mandats', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(mandat)
+    });
+    if (!response.ok) throw new Error('Failed to create mandat');
+    return await response.json();
   },
 
   update(id, updates) {
@@ -360,12 +361,12 @@ export function initializeSampleData() {
       montantPaye: 40000,
       solde: 80000,
       periodicitePaiement: 'mensuel',
-      echeancesPaiement: [
-        { date: '2025-01-31', montant: 10000, statut: 'paye' },
-        { date: '2025-02-28', montant: 10000, statut: 'paye' },
-        { date: '2025-03-31', montant: 10000, statut: 'paye' },
-        { date: '2025-04-30', montant: 10000, statut: 'paye' },
-        { date: '2025-05-31', montant: 10000, statut: 'en_attente' }
+      paiements: [
+        { datePrevue: '2025-01-31', montant: 10000, statut: 'En attente', pourcentage: 8.33 },
+        { datePrevue: '2025-02-28', montant: 10000, statut: 'En attente', pourcentage: 8.33 },
+        { datePrevue: '2025-03-31', montant: 10000, statut: 'En attente', pourcentage: 8.33 },
+        { datePrevue: '2025-04-30', montant: 10000, statut: 'En attente', pourcentage: 8.33 },
+        { datePrevue: '2025-05-31', montant: 10000, statut: 'En attente', pourcentage: 8.33 }
       ],
       mandatId: mandats[0].id,
       ligneBudgetaireId: lignesBudgetaires[0].id
@@ -383,8 +384,8 @@ export function initializeSampleData() {
       montantPaye: 45000,
       solde: 0,
       periodicitePaiement: 'unique',
-      echeancesPaiement: [
-        { date: '2025-02-15', montant: 45000, statut: 'paye' }
+      paiements: [
+        { datePrevue: '2025-02-15', montant: 45000, statut: 'En attente', pourcentage: 100 }
       ],
       mandatId: mandats[1].id,
       ligneBudgetaireId: lignesBudgetaires[1].id
@@ -402,10 +403,10 @@ export function initializeSampleData() {
       montantPaye: 25000,
       solde: 50000,
       periodicitePaiement: 'trimestriel',
-      echeancesPaiement: [
-        { date: '2025-03-31', montant: 25000, statut: 'paye' },
-        { date: '2025-06-30', montant: 25000, statut: 'en_attente' },
-        { date: '2025-09-30', montant: 25000, statut: 'en_attente' }
+      paiements: [
+        { datePrevue: '2025-03-31', montant: 25000, statut: 'En attente', pourcentage: 33.33 },
+        { datePrevue: '2025-06-30', montant: 25000, statut: 'En attente', pourcentage: 33.33 },
+        { datePrevue: '2025-09-30', montant: 25000, statut: 'En attente', pourcentage: 33.34 }
       ],
       mandatId: mandats[2].id,
       ligneBudgetaireId: lignesBudgetaires[2].id

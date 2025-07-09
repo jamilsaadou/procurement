@@ -4,60 +4,53 @@ import { useState, useEffect } from 'react';
 import { 
   Plus, 
   Search, 
-  Filter, 
   Eye, 
   Edit, 
   Trash2,
   Download,
   FileText,
   Calendar,
-  Euro,
-  CheckCircle
+  MapPin
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
 import Modal from '@/components/ui/Modal';
 import MandatForm from '@/components/ui/MandatForm';
-import { mandatsAPI } from '@/lib/data';
 
 // Simple utility functions
-function formatCurrency(amount) {
-  if (amount === null || amount === undefined) return '0 CFA';
-  return new Intl.NumberFormat('fr-FR', {
-    style: 'decimal',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0
-  }).format(amount) + ' CFA';
-}
-
 function formatDate(date) {
   if (!date) return '';
   const dateObj = typeof date === 'string' ? new Date(date) : date;
   return dateObj.toLocaleDateString('fr-FR');
 }
 
-const STATUTS_MANDATS = [
-  { id: 'brouillon', label: 'Brouillon' },
-  { id: 'actif', label: 'Actif' },
-  { id: 'termine', label: 'Terminé' },
-  { id: 'suspendu', label: 'Suspendu' }
-];
+function formatDuration(days) {
+  if (!days) return '';
+  const years = Math.floor(days / 365);
+  const months = Math.floor((days % 365) / 30);
+  const remainingDays = days % 30;
+  
+  let result = '';
+  if (years > 0) result += `${years} an${years > 1 ? 's' : ''} `;
+  if (months > 0) result += `${months} mois `;
+  if (remainingDays > 0 && years === 0) result += `${remainingDays} jour${remainingDays > 1 ? 's' : ''}`;
+  
+  return result.trim();
+}
 
-const TYPES_MANDATS = [
-  { id: 'prestation_service', label: 'Prestation de service' },
-  { id: 'fourniture', label: 'Fourniture' },
-  { id: 'conseil', label: 'Conseil' },
-  { id: 'maintenance', label: 'Maintenance' },
-  { id: 'formation', label: 'Formation' }
+const STATUTS_MANDATS = [
+  { id: 'Actif', label: 'Actif' },
+  { id: 'Terminé', label: 'Terminé' },
+  { id: 'Suspendu', label: 'Suspendu' },
+  { id: 'En attente', label: 'En attente' }
 ];
 
 function getStatusColor(statut) {
   switch (statut) {
-    case 'brouillon': return 'bg-gray-100 text-gray-800';
-    case 'actif': return 'bg-green-100 text-green-800';
-    case 'termine': return 'bg-blue-100 text-blue-800';
-    case 'suspendu': return 'bg-red-100 text-red-800';
+    case 'Actif': return 'bg-green-100 text-green-800';
+    case 'Terminé': return 'bg-blue-100 text-blue-800';
+    case 'Suspendu': return 'bg-red-100 text-red-800';
+    case 'En attente': return 'bg-yellow-100 text-yellow-800';
     default: return 'bg-gray-100 text-gray-800';
   }
 }
@@ -84,19 +77,19 @@ const MandatsTable = ({ mandats, onView, onEdit, onDelete }) => {
               N° Mandat
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Nom du partenaire
+              Nom / Titre
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Représentant légal
+              Période d'activité
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Type
-            </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Date de signature
+              Régions
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Statut
+            </th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Conventions
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Actions
@@ -108,28 +101,40 @@ const MandatsTable = ({ mandats, onView, onEdit, onDelete }) => {
             <tr key={mandat.id} className="hover:bg-gray-50">
               <td className="px-6 py-4 whitespace-nowrap">
                 <div className="text-sm font-medium text-gray-900">{mandat.numero}</div>
-                <div className="text-sm text-gray-500">{mandat.formeJuridique}</div>
+                <div className="text-sm text-gray-500">
+                  <Calendar className="inline h-3 w-3 mr-1" />
+                  {formatDate(mandat.dateDebut)}
+                </div>
               </td>
-              <td className="px-6 py-4 whitespace-nowrap">
-                <div className="text-sm text-gray-900">{mandat.nomPartenaire}</div>
-                <div className="text-sm text-gray-500">{mandat.emailPartenaire}</div>
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap">
-                <div className="text-sm text-gray-900">{mandat.representantLegal}</div>
-                <div className="text-sm text-gray-500">{mandat.telephonePartenaire}</div>
+              <td className="px-6 py-4">
+                <div className="text-sm font-medium text-gray-900">{mandat.nom}</div>
+                <div className="text-sm text-gray-500">{mandat.titre}</div>
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
                 <div className="text-sm text-gray-900">
-                  {TYPES_MANDATS.find(t => t.id === mandat.typeMandat)?.label || mandat.typeMandat}
+                  {formatDate(mandat.dateDebut)} - {formatDate(mandat.dateFin)}
+                </div>
+                <div className="text-sm text-gray-500">
+                  Durée: {formatDuration(mandat.dureeEnJours)}
+                </div>
+              </td>
+              <td className="px-6 py-4">
+                <div className="text-sm text-gray-900">
+                  <MapPin className="inline h-3 w-3 mr-1" />
+                  {mandat.regionsInterventionArray?.slice(0, 2).join(', ')}
+                  {mandat.regionsInterventionArray?.length > 2 && 
+                    ` +${mandat.regionsInterventionArray.length - 2}`
+                  }
                 </div>
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
-                <div className="text-sm text-gray-900">{formatDate(mandat.dateSignature)}</div>
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(mandat.statut)}`}>
+                  {mandat.statut}
+                </span>
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
-                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(mandat.statut)}`}>
-                  {STATUTS_MANDATS.find(s => s.id === mandat.statut)?.label || mandat.statut}
-                </span>
+                <div className="text-sm text-gray-900">{mandat.nombreConventions || 0}</div>
+                <div className="text-sm text-gray-500">convention{(mandat.nombreConventions || 0) > 1 ? 's' : ''}</div>
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                 <div className="flex items-center space-x-2">
@@ -191,78 +196,76 @@ const MandatDetailsModal = ({ mandat, isOpen, onClose }) => {
               Statut
             </label>
             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(mandat.statut)}`}>
-              {STATUTS_MANDATS.find(s => s.id === mandat.statut)?.label || mandat.statut}
+              {mandat.statut}
             </span>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Nom du partenaire
-            </label>
-            <p className="text-sm text-gray-900">{mandat.nomPartenaire}</p>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Représentant légal
-            </label>
-            <p className="text-sm text-gray-900">{mandat.representantLegal}</p>
           </div>
         </div>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Adresse
+            Nom du mandat
           </label>
-          <p className="text-sm text-gray-900">{mandat.adressePartenaire}</p>
+          <p className="text-sm text-gray-900">{mandat.nom}</p>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Titre
+          </label>
+          <p className="text-sm text-gray-900">{mandat.titre}</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email
+              Date de début
             </label>
-            <p className="text-sm text-gray-900">{mandat.emailPartenaire}</p>
+            <p className="text-sm text-gray-900">{formatDate(mandat.dateDebut)}</p>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Téléphone
+              Date de fin
             </label>
-            <p className="text-sm text-gray-900">{mandat.telephonePartenaire}</p>
+            <p className="text-sm text-gray-900">{formatDate(mandat.dateFin)}</p>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              SIRET
-            </label>
-            <p className="text-sm text-gray-900">{mandat.numeroSiret}</p>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Forme juridique
-            </label>
-            <p className="text-sm text-gray-900">{mandat.formeJuridique}</p>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Durée
+          </label>
+          <p className="text-sm text-gray-900">{formatDuration(mandat.dureeEnJours)}</p>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Régions d'intervention
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {mandat.regionsInterventionArray?.map((region, index) => (
+              <span key={index} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                {region}
+              </span>
+            ))}
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {mandat.description && (
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Type de mandat
+              Description
             </label>
-            <p className="text-sm text-gray-900">
-              {TYPES_MANDATS.find(t => t.id === mandat.typeMandat)?.label || mandat.typeMandat}
-            </p>
+            <p className="text-sm text-gray-900">{mandat.description}</p>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Date de signature
-            </label>
-            <p className="text-sm text-gray-900">{formatDate(mandat.dateSignature)}</p>
-          </div>
+        )}
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Conventions associées
+          </label>
+          <p className="text-sm text-gray-900">
+            {mandat.nombreConventions || 0} convention{(mandat.nombreConventions || 0) > 1 ? 's' : ''}
+          </p>
         </div>
       </div>
     </Modal>
@@ -288,13 +291,16 @@ export default function MandatsPage() {
     filterMandats();
   }, [mandats, searchTerm, statusFilter]);
 
-  const loadMandats = () => {
+  const loadMandats = async () => {
     setLoading(true);
     try {
-      const data = mandatsAPI.getAll();
+      const response = await fetch('/api/mandats');
+      if (!response.ok) throw new Error('Failed to fetch mandats');
+      const data = await response.json();
       setMandats(data);
     } catch (error) {
       console.error('Erreur lors du chargement des mandats:', error);
+      setMandats([]);
     } finally {
       setLoading(false);
     }
@@ -305,9 +311,9 @@ export default function MandatsPage() {
 
     if (searchTerm) {
       filtered = filtered.filter(mandat =>
-        mandat.numero.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        mandat.nomPartenaire.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        mandat.representantLegal.toLowerCase().includes(searchTerm.toLowerCase())
+        mandat.numero?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        mandat.nom?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        mandat.titre?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
@@ -328,10 +334,23 @@ export default function MandatsPage() {
     setShowMandatForm(true);
   };
 
-  const handleDelete = (mandat) => {
+  const handleDelete = async (mandat) => {
     if (confirm(`Êtes-vous sûr de vouloir supprimer le mandat ${mandat.numero} ?`)) {
-      mandatsAPI.delete(mandat.id);
-      loadMandats();
+      try {
+        const response = await fetch(`/api/mandats/${mandat.id}`, {
+          method: 'DELETE'
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to delete mandat');
+        }
+        
+        loadMandats();
+      } catch (error) {
+        console.error('Erreur lors de la suppression du mandat:', error);
+        alert(`Erreur: ${error.message}`);
+      }
     }
   };
 
@@ -340,27 +359,39 @@ export default function MandatsPage() {
     setShowMandatForm(true);
   };
 
-  const handleSubmitMandat = (mandatData) => {
+  const handleSubmitMandat = async (mandatData) => {
     try {
-      if (editingMandat) {
-        mandatsAPI.update(editingMandat.id, mandatData);
-      } else {
-        mandatsAPI.create(mandatData);
+      const url = editingMandat ? `/api/mandats/${editingMandat.id}` : '/api/mandats';
+      const method = editingMandat ? 'PUT' : 'POST';
+      
+      const response = await fetch(url, {
+        method: method,
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(mandatData)
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to save mandat');
       }
+      
       loadMandats();
       setShowMandatForm(false);
       setEditingMandat(null);
     } catch (error) {
       console.error('Erreur lors de la sauvegarde du mandat:', error);
+      alert(`Erreur: ${error.message}`);
     }
   };
 
   // Calculate stats
   const stats = {
     total: mandats.length,
-    actifs: mandats.filter(m => m.statut === 'actif').length,
-    termines: mandats.filter(m => m.statut === 'termine').length,
-    brouillons: mandats.filter(m => m.statut === 'brouillon').length
+    actifs: mandats.filter(m => m.statut === 'Actif').length,
+    termines: mandats.filter(m => m.statut === 'Terminé').length,
+    suspendus: mandats.filter(m => m.statut === 'Suspendu').length
   };
 
   if (loading) {
@@ -377,7 +408,7 @@ export default function MandatsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Mandats</h1>
-          <p className="text-gray-600">Gérez vos mandats avec les partenaires</p>
+          <p className="text-gray-600">Gérez vos mandats avec leurs périodes d'activité et régions d'intervention</p>
         </div>
         <div className="flex items-center space-x-3">
           <Button variant="outline" className="flex items-center">
@@ -400,7 +431,7 @@ export default function MandatsPage() {
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <input
                   type="text"
-                  placeholder="Rechercher par numéro, partenaire ou représentant..."
+                  placeholder="Rechercher par numéro, nom ou titre..."
                   className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
@@ -447,8 +478,8 @@ export default function MandatsPage() {
         </Card>
         <Card>
           <CardContent className="p-4">
-            <div className="text-2xl font-bold text-gray-600">{stats.brouillons}</div>
-            <div className="text-sm text-gray-600">Brouillons</div>
+            <div className="text-2xl font-bold text-red-600">{stats.suspendus}</div>
+            <div className="text-sm text-gray-600">Suspendus</div>
           </CardContent>
         </Card>
       </div>
@@ -480,15 +511,26 @@ export default function MandatsPage() {
         }}
       />
 
-      <MandatForm
-        isOpen={showMandatForm}
-        onClose={() => {
-          setShowMandatForm(false);
-          setEditingMandat(null);
-        }}
-        onSubmit={handleSubmitMandat}
-        mandat={editingMandat}
-      />
+      {showMandatForm && (
+        <Modal
+          isOpen={showMandatForm}
+          onClose={() => {
+            setShowMandatForm(false);
+            setEditingMandat(null);
+          }}
+          title={editingMandat ? 'Modifier le mandat' : 'Nouveau mandat'}
+          size="lg"
+        >
+          <MandatForm
+            onSubmit={handleSubmitMandat}
+            onCancel={() => {
+              setShowMandatForm(false);
+              setEditingMandat(null);
+            }}
+            initialData={editingMandat}
+          />
+        </Modal>
+      )}
     </div>
   );
 }
