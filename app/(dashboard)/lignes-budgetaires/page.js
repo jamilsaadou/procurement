@@ -53,54 +53,21 @@ const LignesBudgetairesTable = ({ lignesBudgetaires, onView, onEdit, onDelete })
         <thead className="bg-gray-50">
           <tr>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">N°</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Numéro</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Libellé</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Montant initial</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Montant restant</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Utilisation</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Code de la ligne</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Désignation de la ligne d'imputation</th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date de création</th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
           {lignesBudgetaires.map((ligne, index) => {
-            const montantUtilise = ligne.montantInitial - ligne.montantRestant;
-            const pourcentageUtilise = ligne.montantInitial > 0 ? (montantUtilise / ligne.montantInitial) * 100 : 0;
-            
             return (
               <tr key={ligne.id} className="hover:bg-gray-50">
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{index + 1}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{ligne.numero}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  <div className="max-w-48 truncate" title={ligne.libelle}>
-                    {ligne.libelle}
-                  </div>
-                </td>
                 <td className="px-6 py-4 text-sm text-gray-900">
-                  <div className="max-w-32 truncate" title={ligne.description}>
-                    {ligne.description || '-'}
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                  {formatCurrency(ligne.montantInitial)}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                  <span className={ligne.montantRestant > 0 ? 'text-green-600' : 'text-red-600'}>
-                    {formatCurrency(ligne.montantRestant)}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  <div className="flex items-center">
-                    <div className="w-16 bg-gray-200 rounded-full h-2 mr-2">
-                      <div 
-                        className={`h-2 rounded-full ${pourcentageUtilise >= 90 ? 'bg-red-500' : pourcentageUtilise >= 70 ? 'bg-yellow-500' : 'bg-green-500'}`}
-                        style={{ width: `${Math.min(pourcentageUtilise, 100)}%` }}
-                      ></div>
-                    </div>
-                    <span className="text-xs text-gray-500">
-                      {pourcentageUtilise.toFixed(1)}%
-                    </span>
+                  <div className="max-w-96 truncate" title={ligne.libelle}>
+                    {ligne.libelle}
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -147,21 +114,18 @@ const LignesBudgetairesTable = ({ lignesBudgetaires, onView, onEdit, onDelete })
 const LigneBudgetaireDetailsModal = ({ ligneBudgetaire, isOpen, onClose }) => {
   if (!ligneBudgetaire) return null;
 
-  const montantUtilise = ligneBudgetaire.montantInitial - ligneBudgetaire.montantRestant;
-  const pourcentageUtilise = ligneBudgetaire.montantInitial > 0 ? (montantUtilise / ligneBudgetaire.montantInitial) * 100 : 0;
-
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
       title={`Détails - ${ligneBudgetaire.numero}`}
-      size="lg"
+      size="md"
     >
-      <div className="space-y-6">
+      <div className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Numéro
+              Code de la ligne
             </label>
             <p className="text-sm text-gray-900">{ligneBudgetaire.numero}</p>
           </div>
@@ -175,56 +139,9 @@ const LigneBudgetaireDetailsModal = ({ ligneBudgetaire, isOpen, onClose }) => {
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Libellé
+            Désignation de la ligne d'imputation
           </label>
           <p className="text-sm text-gray-900">{ligneBudgetaire.libelle}</p>
-        </div>
-
-        {ligneBudgetaire.description && (
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Description
-            </label>
-            <p className="text-sm text-gray-900">{ligneBudgetaire.description}</p>
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Montant initial
-            </label>
-            <p className="text-sm font-medium text-gray-900">{formatCurrency(ligneBudgetaire.montantInitial)}</p>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Montant utilisé
-            </label>
-            <p className="text-sm font-medium text-blue-600">{formatCurrency(montantUtilise)}</p>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Montant restant
-            </label>
-            <p className={`text-sm font-medium ${ligneBudgetaire.montantRestant > 0 ? 'text-green-600' : 'text-red-600'}`}>
-              {formatCurrency(ligneBudgetaire.montantRestant)}
-            </p>
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Utilisation du budget
-          </label>
-          <div className="w-full bg-gray-200 rounded-full h-4">
-            <div 
-              className={`h-4 rounded-full ${pourcentageUtilise >= 90 ? 'bg-red-500' : pourcentageUtilise >= 70 ? 'bg-yellow-500' : 'bg-green-500'}`}
-              style={{ width: `${Math.min(pourcentageUtilise, 100)}%` }}
-            ></div>
-          </div>
-          <p className="text-sm text-gray-600 mt-1">
-            {pourcentageUtilise.toFixed(1)}% utilisé
-          </p>
         </div>
       </div>
     </Modal>
@@ -353,7 +270,7 @@ export default function LignesBudgetairesPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Lignes budgétaires</h1>
-          <p className="text-gray-600">Gérez vos lignes budgétaires et suivez leur utilisation</p>
+          <p className="text-gray-600">Gérez vos lignes budgétaires avec leur code et désignation</p>
         </div>
         <div className="flex items-center space-x-3">
           <Button variant="outline" className="flex items-center">
@@ -391,35 +308,11 @@ export default function LignesBudgetairesPage() {
       </Card>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
         <Card>
           <CardContent className="p-4">
             <div className="text-2xl font-bold text-blue-600">{lignesBudgetaires.length}</div>
-            <div className="text-sm text-gray-600">Total lignes</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="text-2xl font-bold text-green-600">
-              {formatCurrency(totalMontantInitial)}
-            </div>
-            <div className="text-sm text-gray-600">Budget total</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="text-2xl font-bold text-yellow-600">
-              {formatCurrency(totalMontantUtilise)}
-            </div>
-            <div className="text-sm text-gray-600">Montant utilisé</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="text-2xl font-bold text-red-600">
-              {lignesEpuisees}
-            </div>
-            <div className="text-sm text-gray-600">Lignes épuisées</div>
+            <div className="text-sm text-gray-600">Total lignes budgétaires</div>
           </CardContent>
         </Card>
       </div>

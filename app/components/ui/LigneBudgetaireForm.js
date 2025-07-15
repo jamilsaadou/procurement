@@ -8,9 +8,7 @@ import Modal from './Modal';
 const LigneBudgetaireForm = ({ isOpen, onClose, onSubmit, ligne = null }) => {
   const [formData, setFormData] = useState({
     numero: ligne?.numero || '',
-    libelle: ligne?.libelle || '',
-    description: ligne?.description || '',
-    montantInitial: ligne?.montantInitial || ''
+    libelle: ligne?.libelle || ''
   });
 
   const [errors, setErrors] = useState({});
@@ -34,13 +32,10 @@ const LigneBudgetaireForm = ({ isOpen, onClose, onSubmit, ligne = null }) => {
     const newErrors = {};
 
     if (!formData.numero.trim()) {
-      newErrors.numero = 'Le numéro est requis';
+      newErrors.numero = 'Le code de la ligne est requis';
     }
     if (!formData.libelle.trim()) {
-      newErrors.libelle = 'Le libellé est requis';
-    }
-    if (formData.montantInitial && isNaN(formData.montantInitial)) {
-      newErrors.montantInitial = 'Montant invalide';
+      newErrors.libelle = 'La désignation de la ligne d\'imputation est requise';
     }
 
     setErrors(newErrors);
@@ -51,10 +46,7 @@ const LigneBudgetaireForm = ({ isOpen, onClose, onSubmit, ligne = null }) => {
     e.preventDefault();
     
     if (validateForm()) {
-      onSubmit({
-        ...formData,
-        montantInitial: parseFloat(formData.montantInitial) || 0
-      });
+      onSubmit(formData);
       handleClose();
     }
   };
@@ -62,9 +54,7 @@ const LigneBudgetaireForm = ({ isOpen, onClose, onSubmit, ligne = null }) => {
   const handleClose = () => {
     setFormData({
       numero: '',
-      libelle: '',
-      description: '',
-      montantInitial: ''
+      libelle: ''
     });
     setErrors({});
     onClose();
@@ -79,7 +69,7 @@ const LigneBudgetaireForm = ({ isOpen, onClose, onSubmit, ligne = null }) => {
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Numéro *
+            Code de la ligne *
           </label>
           <Input
             name="numero"
@@ -92,7 +82,7 @@ const LigneBudgetaireForm = ({ isOpen, onClose, onSubmit, ligne = null }) => {
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Libellé *
+            Désignation de la ligne d'imputation *
           </label>
           <Input
             name="libelle"
@@ -100,33 +90,6 @@ const LigneBudgetaireForm = ({ isOpen, onClose, onSubmit, ligne = null }) => {
             onChange={handleChange}
             placeholder="Maintenance informatique"
             error={errors.libelle}
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Montant initial (CFA)
-          </label>
-          <Input
-            name="montantInitial"
-            value={formData.montantInitial}
-            onChange={handleChange}
-            placeholder="120000"
-            error={errors.montantInitial}
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Description
-          </label>
-          <textarea
-            name="description"
-            value={formData.description}
-            onChange={handleChange}
-            rows={3}
-            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
-            placeholder="Description de la ligne budgétaire..."
           />
         </div>
 

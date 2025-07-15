@@ -1,23 +1,22 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Button from './Button';
 import Input from './Input';
 
 export default function MandatForm({ onSubmit, onCancel, initialData = null }) {
   const [formData, setFormData] = useState({
-    numero: initialData?.numero || '',
     nom: initialData?.nom || '',
-    titre: initialData?.titre || '',
     dateDebut: initialData?.dateDebut ? new Date(initialData.dateDebut).toISOString().split('T')[0] : '',
     dateFin: initialData?.dateFin ? new Date(initialData.dateFin).toISOString().split('T')[0] : '',
     regionsIntervention: initialData?.regionsIntervention ? JSON.parse(initialData.regionsIntervention) : [],
-    statut: initialData?.statut || 'Actif',
+    lignesBudgetairesIds: initialData?.lignesBudgetaires ? initialData.lignesBudgetaires.map(lb => lb.ligneBudgetaire.id) : [],
     description: initialData?.description || ''
   });
 
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [lignesBudgetaires, setLignesBudgetaires] = useState([]);
 
   const regionsDisponibles = [
     'Niamey',
@@ -31,22 +30,28 @@ export default function MandatForm({ onSubmit, onCancel, initialData = null }) {
     'Echelle nationale'
   ];
 
-  const statutsMandat = [
-    'Actif',
-    'Terminé',
-    'Suspendu',
-    'En attente'
-  ];
+  // Charger les lignes budgétaires
+  useEffect(() => {
+    const fetchLignesBudgetaires = async () => {
+      try {
+        const response = await fetch('/api/lignes-budgetaires');
+        if (response.ok) {
+          const data = await response.json();
+          setLignesBudgetaires(data);
+        }
+      } catch (error) {
+        console.error('Erreur lors du chargement des lignes budgétaires:', error);
+      }
+    };
+
+    fetchLignesBudgetaires();
+  }, []);
 
   const validateForm = () => {
     const newErrors = {};
 
     if (!formData.nom.trim()) {
       newErrors.nom = 'Le nom du mandat est requis';
-    }
-
-    if (!formData.titre.trim()) {
-      newErrors.titre = 'Le titre est requis';
     }
 
     if (!formData.dateDebut) {
@@ -65,6 +70,10 @@ export default function MandatForm({ onSubmit, onCancel, initialData = null }) {
       newErrors.regionsIntervention = 'Au moins une région d\'intervention est requise';
     }
 
+    if (formData.lignesBudgetairesIds.length === 0) {
+      newErrors.lignesBudgetairesIds = 'Au moins une ligne budgétaire est requise';
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -81,7 +90,10 @@ export default function MandatForm({ onSubmit, onCancel, initialData = null }) {
       const submitData = {
         ...formData,
         regionsIntervention: JSON.stringify(formData.regionsIntervention),
-        dateCreation: formData.dateDebut // Pour compatibilité
+        // Champs requis pour la compatibilité avec le schéma
+        titre: formData.nom, // Utiliser le nom comme titre
+        dateCreation: formData.dateDebut,
+        statut: 'Actif' // Statut par défaut
       };
       await onSubmit(submitData);
     } catch (error) {
@@ -128,6 +140,27 @@ export default function MandatForm({ onSubmit, onCancel, initialData = null }) {
     }
   };
 
+  const handleLigneBudgetaireChange = (ligneBudgetaireId) => {
+    setFormData(prev => {
+      const newLignes = prev.lignesBudgetairesIds.includes(ligneBudgetaireId)
+        ? prev.lignesBudgetairesIds.filter(id => id !== ligneBudgetaireId)
+        : [...prev.lignesBudgetairesIds, ligneBudgetaireId];
+      
+      return {
+        ...prev,
+        lignesBudgetairesIds: newLignes
+      };
+    });
+
+    // Clear error when user selects lignes budgétaires
+    if (errors.lignesBudgetairesIds) {
+      setErrors(prev => ({
+        ...prev,
+        lignesBudgetairesIds: ''
+      }));
+    }
+  };
+
   const calculateDuration = () => {
     if (formData.dateDebut && formData.dateFin) {
       const debut = new Date(formData.dateDebut);
@@ -150,34 +183,6 @@ export default function MandatForm({ onSubmit, onCancel, initialData = null }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <Input
-            label="Numéro du mandat"
-            name="numero"
-            value={formData.numero || 'Généré automatiquement'}
-            readOnly
-            className="bg-gray-50"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Statut
-          </label>
-          <select
-            name="statut"
-            value={formData.statut}
-            onChange={handleChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            {statutsMandat.map(statut => (
-              <option key={statut} value={statut}>{statut}</option>
-            ))}
-          </select>
-        </div>
-      </div>
-
       <div>
         <Input
           label="Nom du mandat"
@@ -186,18 +191,6 @@ export default function MandatForm({ onSubmit, onCancel, initialData = null }) {
           onChange={handleChange}
           error={errors.nom}
           placeholder="Ex: Mandat de prestation informatique"
-          required
-        />
-      </div>
-
-      <div>
-        <Input
-          label="Titre"
-          name="titre"
-          value={formData.titre}
-          onChange={handleChange}
-          error={errors.titre}
-          placeholder="Ex: Développement d'applications web"
           required
         />
       </div>
@@ -235,6 +228,35 @@ export default function MandatForm({ onSubmit, onCancel, initialData = null }) {
           </p>
         </div>
       )}
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Lignes budgétaires *
+        </label>
+        <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto border border-gray-300 rounded-md p-3">
+          {lignesBudgetaires.map(ligne => (
+            <label key={ligne.id} className="flex items-center space-x-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={formData.lignesBudgetairesIds.includes(ligne.id)}
+                onChange={() => handleLigneBudgetaireChange(ligne.id)}
+                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              <span className="text-sm text-gray-700">
+                <strong>{ligne.numero}</strong> - {ligne.libelle}
+              </span>
+            </label>
+          ))}
+        </div>
+        {errors.lignesBudgetairesIds && (
+          <p className="mt-1 text-sm text-red-600">{errors.lignesBudgetairesIds}</p>
+        )}
+        {formData.lignesBudgetairesIds.length > 0 && (
+          <p className="mt-1 text-sm text-blue-600">
+            {formData.lignesBudgetairesIds.length} ligne{formData.lignesBudgetairesIds.length > 1 ? 's' : ''} budgétaire{formData.lignesBudgetairesIds.length > 1 ? 's' : ''} sélectionnée{formData.lignesBudgetairesIds.length > 1 ? 's' : ''}
+          </p>
+        )}
+      </div>
 
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">

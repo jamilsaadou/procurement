@@ -7,6 +7,11 @@ export async function GET() {
   try {
     const mandats = await prisma.mandat.findMany({
       include: {
+        lignesBudgetaires: {
+          include: {
+            ligneBudgetaire: true
+          }
+        },
         conventions: {
           include: {
             ligneBudgetaire: true,
@@ -49,9 +54,9 @@ export async function POST(request) {
     console.log('Received mandat data:', JSON.stringify(data, null, 2));
     
     // Validate required fields
-    if (!data.nom || !data.titre || !data.dateDebut || !data.dateFin || !data.regionsIntervention) {
+    if (!data.nom || !data.titre || !data.dateDebut || !data.dateFin || !data.regionsIntervention || !data.lignesBudgetairesIds || data.lignesBudgetairesIds.length === 0) {
       return NextResponse.json(
-        { error: "Champs requis manquants (nom, titre, dateDebut, dateFin, regionsIntervention)" },
+        { error: "Champs requis manquants (nom, titre, dateDebut, dateFin, regionsIntervention, lignesBudgetairesIds)" },
         { status: 400 }
       );
     }
@@ -101,15 +106,35 @@ export async function POST(request) {
     const newMandat = await prisma.mandat.create({
       data: mandatData,
       include: {
+        lignesBudgetaires: {
+          include: {
+            ligneBudgetaire: true
+          }
+        },
         conventions: true
       }
     });
 
-    // Update with formatted numero
+    // Create relations with lignes budgétaires
+    const lignesBudgetairesRelations = data.lignesBudgetairesIds.map(ligneBudgetaireId => ({
+      mandatId: newMandat.id,
+      ligneBudgetaireId: ligneBudgetaireId
+    }));
+
+    await prisma.mandatLigneBudgetaire.createMany({
+      data: lignesBudgetairesRelations
+    });
+
+    // Update with formatted numero and get complete data
     const updatedMandat = await prisma.mandat.update({
       where: { id: newMandat.id },
       data: { numero: `MAN-${newMandat.id}` },
       include: {
+        lignesBudgetaires: {
+          include: {
+            ligneBudgetaire: true
+          }
+        },
         conventions: {
           include: {
             ligneBudgetaire: true,

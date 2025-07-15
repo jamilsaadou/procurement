@@ -18,7 +18,7 @@ export async function POST(request) {
   try {
     const data = await request.json()
     
-    // Validate required fields
+    // Validate required fields - only numero and libelle are needed
     if (!data.numero || !data.libelle) {
       return Response.json(
         { error: "Missing required fields (numero, libelle)" },
@@ -26,16 +26,13 @@ export async function POST(request) {
       )
     }
 
-    // Convert montantInitial to number
-    const montantInitial = Number(data.montantInitial) || 0
-
     const newLigne = await prisma.ligneBudgetaire.create({
       data: {
         numero: data.numero,
         libelle: data.libelle,
-        description: data.description || "",
-        montantInitial: montantInitial,
-        montantRestant: montantInitial
+        description: "", // Default empty description
+        montantInitial: 0, // Default amount
+        montantRestant: 0 // Default remaining amount
       }
     })
 

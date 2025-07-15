@@ -52,31 +52,46 @@ model Convention {
 }
 
 model Mandat {
-  id                Int          @id @default(autoincrement())
-  numero            String?      @unique
-  nom               String       // Nom du mandat
-  dateDebut         DateTime     // Début de la période d'activité
-  dateFin           DateTime     // Fin de la période d'activité
-  regionsIntervention String     // JSON array des régions d'intervention
-  createdAt         DateTime     @default(now())
-  updatedAt         DateTime     @updatedAt
+  id                Int                      @id @default(autoincrement())
+  numero            String?                  @unique
+  nom               String                   // Nom du mandat
+  dateDebut         DateTime                 // Début de la période d'activité
+  dateFin           DateTime                 // Fin de la période d'activité
+  regionsIntervention String                 // JSON array des régions d'intervention
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
   statut            String
-  titre             String       // Garder pour compatibilité
-  dateCreation      DateTime     // Garder pour compatibilité
+  titre             String                   // Garder pour compatibilité
+  dateCreation      DateTime                 // Garder pour compatibilité
   description       String?
+  lignesBudgetaires MandatLigneBudgetaire[]  // Relation many-to-many
   conventions       Convention[]
 }
 
 model LigneBudgetaire {
-  id             String       @id @default(uuid())
-  numero         String       @unique
+  id             String                   @id @default(uuid())
+  numero         String                   @unique
   libelle        String
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
   description    String?
-  montantInitial Float        @default(0)
-  montantRestant Float        @default(0)
+  montantInitial Float                    @default(0)
+  montantRestant Float                    @default(0)
+  mandats        MandatLigneBudgetaire[]  // Relation many-to-many
   conventions    Convention[]
+}
+
+model MandatLigneBudgetaire {
+  id                Int             @id @default(autoincrement())
+  mandatId          Int
+  ligneBudgetaireId String
+  createdAt         DateTime        @default(now())
+  mandat            Mandat          @relation(fields: [mandatId], references: [id], onDelete: Cascade)
+  ligneBudgetaire   LigneBudgetaire @relation(fields: [ligneBudgetaireId], references: [id], onDelete: Cascade)
+
+  @@unique([mandatId, ligneBudgetaireId])
+  @@index([mandatId], map: "MandatLigneBudgetaire_mandatId_fkey")
+  @@index([ligneBudgetaireId], map: "MandatLigneBudgetaire_ligneBudgetaireId_fkey")
 }
 
 model Paiement {

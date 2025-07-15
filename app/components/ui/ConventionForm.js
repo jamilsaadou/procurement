@@ -24,11 +24,38 @@ export default function ConventionForm({ onSubmit, onCancel, initialData = null 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [mandats, setMandats] = useState([]);
   const [lignesBudgetaires, setLignesBudgetaires] = useState([]);
+  const [filteredLignesBudgetaires, setFilteredLignesBudgetaires] = useState([]);
   const [partenaires, setPartenaires] = useState([]);
 
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Filtrer les lignes budgétaires basé sur le mandat sélectionné
+  useEffect(() => {
+    if (formData.mandatId && mandats.length > 0) {
+      const selectedMandat = mandats.find(mandat => mandat.id.toString() === formData.mandatId.toString());
+      if (selectedMandat && selectedMandat.lignesBudgetaires && selectedMandat.lignesBudgetaires.length > 0) {
+        // Afficher toutes les lignes budgétaires associées au mandat sélectionné
+        const lignesAssociees = selectedMandat.lignesBudgetaires.map(lb => lb.ligneBudgetaire);
+        setFilteredLignesBudgetaires(lignesAssociees);
+        // Réinitialiser la sélection pour que l'utilisateur choisisse
+        setFormData(prev => ({
+          ...prev,
+          ligneBudgetaireId: ''
+        }));
+      } else {
+        setFilteredLignesBudgetaires([]);
+      }
+    } else {
+      setFilteredLignesBudgetaires([]);
+      // Réinitialiser la ligne budgétaire si aucun mandat n'est sélectionné
+      setFormData(prev => ({
+        ...prev,
+        ligneBudgetaireId: ''
+      }));
+    }
+  }, [formData.mandatId, mandats]);
 
   useEffect(() => {
     if (initialData) {
@@ -242,13 +269,21 @@ export default function ConventionForm({ onSubmit, onCancel, initialData = null 
             name="ligneBudgetaireId"
             value={formData.ligneBudgetaireId}
             onChange={handleChange}
+            disabled={!formData.mandatId}
             className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
               errors.ligneBudgetaireId ? 'border-red-500' : 'border-gray-300'
-            }`}
+            } ${!formData.mandatId ? 'bg-gray-100 cursor-not-allowed' : ''}`}
             required
           >
-            <option value="">Sélectionner une ligne budgétaire</option>
-            {lignesBudgetaires.map(ligne => (
+            <option value="">
+              {!formData.mandatId 
+                ? "Sélectionnez d'abord un mandat" 
+                : filteredLignesBudgetaires.length === 0 
+                  ? "Aucune ligne budgétaire disponible"
+                  : "Sélectionner une ligne budgétaire"
+              }
+            </option>
+            {filteredLignesBudgetaires.map(ligne => (
               <option key={ligne.id} value={ligne.id}>
                 {ligne.numero} - {ligne.libelle}
               </option>
@@ -256,6 +291,11 @@ export default function ConventionForm({ onSubmit, onCancel, initialData = null 
           </select>
           {errors.ligneBudgetaireId && (
             <p className="mt-1 text-sm text-red-600">{errors.ligneBudgetaireId}</p>
+          )}
+          {formData.mandatId && filteredLignesBudgetaires.length > 0 && (
+            <p className="mt-1 text-sm text-blue-600">
+              {filteredLignesBudgetaires.length} ligne{filteredLignesBudgetaires.length > 1 ? 's' : ''} budgétaire{filteredLignesBudgetaires.length > 1 ? 's' : ''} disponible{filteredLignesBudgetaires.length > 1 ? 's' : ''} pour ce mandat.
+            </p>
           )}
         </div>
 
