@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
-import { Calendar, BarChart3, TrendingUp, Filter } from 'lucide-react';
+import { Calendar, BarChart3, TrendingUp, Filter, Download, FileSpreadsheet } from 'lucide-react';
+import { exportConventionsToExcel, exportConventionsSummaryToExcel } from '@/lib/excelExport';
 
 // Utilitaires pour les dates
 const formatCurrency = (amount) => {
@@ -308,6 +309,65 @@ export default function ConventionsVisualisationPage() {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
 
+  // Fonctions d'export
+  const handleExportDetailed = () => {
+    if (conventions.length === 0) {
+      alert('Aucune donnée à exporter');
+      return;
+    }
+    
+    let dataToExport = conventions;
+    
+    // Filtrer selon la vue actuelle
+    if (viewMode === 'monthly') {
+      dataToExport = conventions.filter(conv => {
+        const convDate = new Date(conv.dateDebut);
+        return convDate.getFullYear() === selectedYear && convDate.getMonth() === selectedMonth;
+      });
+    } else if (viewMode === 'yearly') {
+      dataToExport = conventions.filter(conv => {
+        const convDate = new Date(conv.dateDebut);
+        return convDate.getFullYear() === selectedYear;
+      });
+    }
+    
+    if (dataToExport.length === 0) {
+      alert('Aucune donnée à exporter pour la période sélectionnée');
+      return;
+    }
+    
+    exportConventionsToExcel(dataToExport);
+  };
+
+  const handleExportSummary = () => {
+    if (conventions.length === 0) {
+      alert('Aucune donnée à exporter');
+      return;
+    }
+    
+    let dataToExport = conventions;
+    
+    // Filtrer selon la vue actuelle
+    if (viewMode === 'monthly') {
+      dataToExport = conventions.filter(conv => {
+        const convDate = new Date(conv.dateDebut);
+        return convDate.getFullYear() === selectedYear && convDate.getMonth() === selectedMonth;
+      });
+    } else if (viewMode === 'yearly') {
+      dataToExport = conventions.filter(conv => {
+        const convDate = new Date(conv.dateDebut);
+        return convDate.getFullYear() === selectedYear;
+      });
+    }
+    
+    if (dataToExport.length === 0) {
+      alert('Aucune donnée à exporter pour la période sélectionnée');
+      return;
+    }
+    
+    exportConventionsSummaryToExcel(dataToExport);
+  };
+
   useEffect(() => {
     const fetchConventions = async () => {
       try {
@@ -358,6 +418,36 @@ export default function ConventionsVisualisationPage() {
           >
             <BarChart3 className="h-4 w-4 mr-2" />
             Vue Annuelle
+          </Button>
+        </div>
+      </div>
+
+      {/* Boutons d'export */}
+      <div className="flex items-center justify-between bg-gray-50 p-4 rounded-lg">
+        <div className="flex items-center space-x-2">
+          <FileSpreadsheet className="h-5 w-5 text-green-600" />
+          <span className="text-sm font-medium text-gray-700">
+            Exporter les données {viewMode === 'monthly' ? `de ${getMonthName(selectedMonth)} ${selectedYear}` : `de l'année ${selectedYear}`}
+          </span>
+        </div>
+        <div className="flex items-center space-x-2">
+          <Button
+            variant="outline"
+            onClick={handleExportSummary}
+            className="flex items-center text-sm"
+            disabled={loading || conventions.length === 0}
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Export Résumé
+          </Button>
+          <Button
+            variant="primary"
+            onClick={handleExportDetailed}
+            className="flex items-center text-sm"
+            disabled={loading || conventions.length === 0}
+          >
+            <FileSpreadsheet className="h-4 w-4 mr-2" />
+            Export Détaillé
           </Button>
         </div>
       </div>

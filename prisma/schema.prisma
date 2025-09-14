@@ -109,3 +109,27 @@ model Paiement {
 
   @@index([conventionId], map: "Paiement_conventionId_fkey")
 }
+
+model User {
+  id        String    @id @default(uuid())
+  email     String    @unique
+  password  String
+  nom       String
+  prenom    String
+  role      String    @default("user") // admin, user
+  statut    String    @default("actif") // actif, inactif
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  sessions  Session[]
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique @db.VarChar(500)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId], map: "Session_userId_fkey")
+}

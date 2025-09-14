@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { 
   Home, 
   FileText, 
@@ -17,7 +17,9 @@ import {
   Calendar,
   AlertTriangle,
   Clock,
-  PieChart
+  PieChart,
+  LogOut,
+  User
 } from 'lucide-react';
 import { 
   BudgetConsumptionChart, 
@@ -245,7 +247,26 @@ export default function Dashboard() {
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [user, setUser] = useState(null);
   const pathname = usePathname();
+  const router = useRouter();
+
+  // Charger les informations utilisateur
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const response = await fetch('/api/auth/me');
+        if (response.ok) {
+          const data = await response.json();
+          setUser(data.user);
+        }
+      } catch (error) {
+        console.error('Erreur chargement utilisateur:', error);
+      }
+    };
+
+    fetchUser();
+  }, []);
 
   // Charger les données du tableau de bord
   useEffect(() => {
@@ -299,6 +320,22 @@ export default function Dashboard() {
 
     fetchDashboardData();
   }, []);
+
+  // Fonction de déconnexion
+  const handleLogout = async () => {
+    try {
+      const response = await fetch('/api/auth/logout', {
+        method: 'POST',
+      });
+
+      if (response.ok) {
+        router.push('/login');
+        router.refresh();
+      }
+    } catch (error) {
+      console.error('Erreur déconnexion:', error);
+    }
+  };
 
   if (loading) {
     return (
@@ -399,6 +436,34 @@ export default function Dashboard() {
                   day: 'numeric'
                 })}
               </div>
+              
+              {/* Informations utilisateur */}
+              {user && (
+                <div className="flex items-center space-x-3">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                      <User className="w-4 h-4 text-blue-600" />
+                    </div>
+                    <div className="hidden sm:block">
+                      <p className="text-sm font-medium text-gray-900">
+                        {user.prenom} {user.nom}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {user.role === 'admin' ? 'Administrateur' : 'Utilisateur'}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <button
+                    onClick={handleLogout}
+                    className="flex items-center space-x-1 px-3 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
+                    title="Se déconnecter"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span className="hidden sm:inline">Déconnexion</span>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </header>

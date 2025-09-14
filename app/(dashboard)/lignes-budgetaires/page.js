@@ -55,12 +55,18 @@ const LignesBudgetairesTable = ({ lignesBudgetaires, onView, onEdit, onDelete })
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">N°</th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Code de la ligne</th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Désignation de la ligne d'imputation</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Budget Initial</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Budget Consommé</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Budget Restant</th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date de création</th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
           {lignesBudgetaires.map((ligne, index) => {
+            const budgetConsomme = ligne.montantInitial - ligne.montantRestant;
+            const tauxConsommation = ligne.montantInitial > 0 ? (budgetConsomme / ligne.montantInitial) * 100 : 0;
+            
             return (
               <tr key={ligne.id} className="hover:bg-gray-50">
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{index + 1}</td>
@@ -69,6 +75,22 @@ const LignesBudgetairesTable = ({ lignesBudgetaires, onView, onEdit, onDelete })
                   <div className="max-w-96 truncate" title={ligne.libelle}>
                     {ligne.libelle}
                   </div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  {formatCurrency(ligne.montantInitial)}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <div className="flex flex-col">
+                    <span>{formatCurrency(budgetConsomme)}</span>
+                    <span className="text-xs text-gray-500">
+                      {tauxConsommation.toFixed(1)}%
+                    </span>
+                  </div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <span className={`${ligne.montantRestant <= 0 ? 'text-red-600 font-medium' : 'text-gray-900'}`}>
+                    {formatCurrency(ligne.montantRestant)}
+                  </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                   {formatDate(ligne.createdAt)}
@@ -114,14 +136,17 @@ const LignesBudgetairesTable = ({ lignesBudgetaires, onView, onEdit, onDelete })
 const LigneBudgetaireDetailsModal = ({ ligneBudgetaire, isOpen, onClose }) => {
   if (!ligneBudgetaire) return null;
 
+  const budgetConsomme = ligneBudgetaire.montantInitial - ligneBudgetaire.montantRestant;
+  const tauxConsommation = ligneBudgetaire.montantInitial > 0 ? (budgetConsomme / ligneBudgetaire.montantInitial) * 100 : 0;
+
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
       title={`Détails - ${ligneBudgetaire.numero}`}
-      size="md"
+      size="lg"
     >
-      <div className="space-y-4">
+      <div className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -142,6 +167,64 @@ const LigneBudgetaireDetailsModal = ({ ligneBudgetaire, isOpen, onClose }) => {
             Désignation de la ligne d'imputation
           </label>
           <p className="text-sm text-gray-900">{ligneBudgetaire.libelle}</p>
+        </div>
+
+        {/* Informations budgétaires */}
+        <div className="border-t pt-4">
+          <h4 className="text-lg font-medium text-gray-900 mb-4">Informations budgétaires</h4>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <div className="bg-blue-50 p-4 rounded-lg">
+              <label className="block text-sm font-medium text-blue-700 mb-1">
+                Budget Initial
+              </label>
+              <p className="text-lg font-semibold text-blue-900">
+                {formatCurrency(ligneBudgetaire.montantInitial)}
+              </p>
+            </div>
+            
+            <div className="bg-yellow-50 p-4 rounded-lg">
+              <label className="block text-sm font-medium text-yellow-700 mb-1">
+                Budget Consommé
+              </label>
+              <p className="text-lg font-semibold text-yellow-900">
+                {formatCurrency(budgetConsomme)}
+              </p>
+              <p className="text-sm text-yellow-600">
+                {tauxConsommation.toFixed(1)}% du budget
+              </p>
+            </div>
+            
+            <div className={`p-4 rounded-lg ${ligneBudgetaire.montantRestant <= 0 ? 'bg-red-50' : 'bg-green-50'}`}>
+              <label className={`block text-sm font-medium mb-1 ${ligneBudgetaire.montantRestant <= 0 ? 'text-red-700' : 'text-green-700'}`}>
+                Budget Restant
+              </label>
+              <p className={`text-lg font-semibold ${ligneBudgetaire.montantRestant <= 0 ? 'text-red-900' : 'text-green-900'}`}>
+                {formatCurrency(ligneBudgetaire.montantRestant)}
+              </p>
+              {ligneBudgetaire.montantRestant <= 0 && (
+                <p className="text-sm text-red-600">Budget épuisé</p>
+              )}
+            </div>
+          </div>
+
+          {/* Barre de progression */}
+          <div className="w-full">
+            <div className="flex justify-between text-sm text-gray-600 mb-2">
+              <span>Consommation du budget</span>
+              <span>{tauxConsommation.toFixed(1)}%</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-3">
+              <div 
+                className={`h-3 rounded-full transition-all duration-300 ${
+                  tauxConsommation >= 100 ? 'bg-red-500' :
+                  tauxConsommation >= 80 ? 'bg-yellow-500' :
+                  'bg-green-500'
+                }`}
+                style={{ width: `${Math.min(tauxConsommation, 100)}%` }}
+              />
+            </div>
+          </div>
         </div>
       </div>
     </Modal>

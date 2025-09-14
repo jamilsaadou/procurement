@@ -8,7 +8,9 @@ import Modal from './Modal';
 const LigneBudgetaireForm = ({ isOpen, onClose, onSubmit, ligne = null }) => {
   const [formData, setFormData] = useState({
     numero: ligne?.numero || '',
-    libelle: ligne?.libelle || ''
+    libelle: ligne?.libelle || '',
+    montantInitial: ligne?.montantInitial || '',
+    montantRestant: ligne?.montantRestant || ''
   });
 
   const [errors, setErrors] = useState({});
@@ -37,6 +39,15 @@ const LigneBudgetaireForm = ({ isOpen, onClose, onSubmit, ligne = null }) => {
     if (!formData.libelle.trim()) {
       newErrors.libelle = 'La désignation de la ligne d\'imputation est requise';
     }
+    if (!formData.montantInitial || parseFloat(formData.montantInitial) <= 0) {
+      newErrors.montantInitial = 'Le montant initial doit être supérieur à 0';
+    }
+    if (!formData.montantRestant || parseFloat(formData.montantRestant) < 0) {
+      newErrors.montantRestant = 'Le montant restant ne peut pas être négatif';
+    }
+    if (parseFloat(formData.montantRestant) > parseFloat(formData.montantInitial)) {
+      newErrors.montantRestant = 'Le montant restant ne peut pas être supérieur au montant initial';
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -46,7 +57,12 @@ const LigneBudgetaireForm = ({ isOpen, onClose, onSubmit, ligne = null }) => {
     e.preventDefault();
     
     if (validateForm()) {
-      onSubmit(formData);
+      const submitData = {
+        ...formData,
+        montantInitial: parseFloat(formData.montantInitial),
+        montantRestant: parseFloat(formData.montantRestant)
+      };
+      onSubmit(submitData);
       handleClose();
     }
   };
@@ -54,7 +70,9 @@ const LigneBudgetaireForm = ({ isOpen, onClose, onSubmit, ligne = null }) => {
   const handleClose = () => {
     setFormData({
       numero: '',
-      libelle: ''
+      libelle: '',
+      montantInitial: '',
+      montantRestant: ''
     });
     setErrors({});
     onClose();
@@ -91,6 +109,41 @@ const LigneBudgetaireForm = ({ isOpen, onClose, onSubmit, ligne = null }) => {
             placeholder="Maintenance informatique"
             error={errors.libelle}
           />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Montant initial (CFA) *
+          </label>
+          <Input
+            name="montantInitial"
+            type="number"
+            min="0"
+            step="0.01"
+            value={formData.montantInitial}
+            onChange={handleChange}
+            placeholder="1000000"
+            error={errors.montantInitial}
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Montant restant (CFA) *
+          </label>
+          <Input
+            name="montantRestant"
+            type="number"
+            min="0"
+            step="0.01"
+            value={formData.montantRestant}
+            onChange={handleChange}
+            placeholder="1000000"
+            error={errors.montantRestant}
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            Le montant restant ne peut pas être supérieur au montant initial
+          </p>
         </div>
 
         <div className="flex justify-end space-x-3 pt-4">
