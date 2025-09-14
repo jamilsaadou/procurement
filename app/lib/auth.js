@@ -237,9 +237,86 @@ export async function requireAuth(request) {
  */
 export async function requireAdmin(request) {
   const user = await requireAuth(request);
-  if (!user || user.role !== 'admin') {
+  if (!user || (user.role !== 'admin' && user.role !== 'super_admin')) {
     return null;
   }
   
   return user;
+}
+
+/**
+ * Middleware d'authentification super admin
+ */
+export async function requireSuperAdmin(request) {
+  const user = await requireAuth(request);
+  if (!user || user.role !== 'super_admin') {
+    return null;
+  }
+  
+  return user;
+}
+
+/**
+ * Vérifie si un utilisateur a les permissions pour une action
+ */
+export function hasPermission(user, action) {
+  if (!user) return false;
+  
+  const permissions = {
+    'super_admin': [
+      'manage_users',
+      'manage_admins', 
+      'view_all_data',
+      'modify_all_data',
+      'system_config',
+      'audit_logs'
+    ],
+    'admin': [
+      'view_all_data',
+      'modify_all_data',
+      'manage_basic_users'
+    ],
+    'user': [
+      'view_own_data',
+      'modify_own_data'
+    ]
+  };
+  
+  return permissions[user.role]?.includes(action) || false;
+}
+
+/**
+ * Crée un utilisateur super administrateur par défaut
+ */
+export async function createDefaultSuperAdmin() {
+  try {
+    // Vérifier si un super admin existe déjà
+    const existingSuperAdmin = await prisma.user.findFirst({
+      where: { role: 'super_admin' }
+    });
+    
+    if (existingSuperAdmin) {
+      return existingSuperAdmin;
+    }
+    
+    // Créer le super admin par défaut
+    const hashedPassword = await hashPassword('superadmin123');
+    
+    const superAdmin = await prisma.user.create({
+      data: {
+        email: 'superadmin@procurement.local',
+        password: hashedPassword,
+        nom: 'Super Administrateur',
+        prenom: 'Système',
+        role: 'super_admin',
+        statut: 'actif'
+      }
+    });
+    
+    console.log('Utilisateur super administrateur créé:', superAdmin.email);
+    return superAdmin;
+  } catch (error) {
+    console.error('Erreur création super admin:', error);
+    return null;
+  }
 }
