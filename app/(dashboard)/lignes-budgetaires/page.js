@@ -15,6 +15,7 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Modal from '@/components/ui/Modal';
 import LigneBudgetaireForm from '@/components/ui/LigneBudgetaireForm';
+import ProgressBar from '@/components/ui/ProgressBar';
 
 // Simple utility functions
 function formatCurrency(amount) {
@@ -56,16 +57,16 @@ const LignesBudgetairesTable = ({ lignesBudgetaires, onView, onEdit, onDelete })
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Code de la ligne</th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Désignation de la ligne d'imputation</th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Budget Initial</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Budget Consommé</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Budget Restant</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Consommation</th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date de création</th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
           {lignesBudgetaires.map((ligne, index) => {
-            const budgetConsomme = ligne.montantInitial - ligne.montantRestant;
-            const tauxConsommation = ligne.montantInitial > 0 ? (budgetConsomme / ligne.montantInitial) * 100 : 0;
+            // Utiliser les données calculées par l'API
+            const budgetConsomme = ligne.montantConsomme || 0;
+            const tauxConsommation = ligne.tauxConsommation || 0;
             
             return (
               <tr key={ligne.id} className="hover:bg-gray-50">
@@ -79,18 +80,20 @@ const LignesBudgetairesTable = ({ lignesBudgetaires, onView, onEdit, onDelete })
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                   {formatCurrency(ligne.montantInitial)}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  <div className="flex flex-col">
-                    <span>{formatCurrency(budgetConsomme)}</span>
-                    <span className="text-xs text-gray-500">
-                      {tauxConsommation.toFixed(1)}%
-                    </span>
+                <td className="px-6 py-4 text-sm text-gray-900" style={{ minWidth: '250px' }}>
+                  <ProgressBar
+                    value={budgetConsomme}
+                    max={ligne.montantInitial}
+                    size="sm"
+                    showPercentage={false}
+                    className="mb-1"
+                  />
+                  <div className="text-xs text-gray-500">
+                    {tauxConsommation.toFixed(1)}% - {formatCurrency(budgetConsomme)} / {formatCurrency(ligne.montantInitial)}
                   </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  <span className={`${ligne.montantRestant <= 0 ? 'text-red-600 font-medium' : 'text-gray-900'}`}>
-                    {formatCurrency(ligne.montantRestant)}
-                  </span>
+                  <div className="text-xs text-gray-400 mt-1">
+                    Restant: {formatCurrency(ligne.montantRestant)}
+                  </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                   {formatDate(ligne.createdAt)}
@@ -136,8 +139,9 @@ const LignesBudgetairesTable = ({ lignesBudgetaires, onView, onEdit, onDelete })
 const LigneBudgetaireDetailsModal = ({ ligneBudgetaire, isOpen, onClose }) => {
   if (!ligneBudgetaire) return null;
 
-  const budgetConsomme = ligneBudgetaire.montantInitial - ligneBudgetaire.montantRestant;
-  const tauxConsommation = ligneBudgetaire.montantInitial > 0 ? (budgetConsomme / ligneBudgetaire.montantInitial) * 100 : 0;
+  // Utiliser les données calculées par l'API
+  const budgetConsomme = ligneBudgetaire.montantConsomme || 0;
+  const tauxConsommation = ligneBudgetaire.tauxConsommation || 0;
 
   return (
     <Modal
@@ -209,22 +213,12 @@ const LigneBudgetaireDetailsModal = ({ ligneBudgetaire, isOpen, onClose }) => {
           </div>
 
           {/* Barre de progression */}
-          <div className="w-full">
-            <div className="flex justify-between text-sm text-gray-600 mb-2">
-              <span>Consommation du budget</span>
-              <span>{tauxConsommation.toFixed(1)}%</span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-3">
-              <div 
-                className={`h-3 rounded-full transition-all duration-300 ${
-                  tauxConsommation >= 100 ? 'bg-red-500' :
-                  tauxConsommation >= 80 ? 'bg-yellow-500' :
-                  'bg-green-500'
-                }`}
-                style={{ width: `${Math.min(tauxConsommation, 100)}%` }}
-              />
-            </div>
-          </div>
+          <ProgressBar
+            value={budgetConsomme}
+            max={ligneBudgetaire.montantInitial}
+            size="md"
+            showPercentage={true}
+          />
         </div>
       </div>
     </Modal>

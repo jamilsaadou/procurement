@@ -9,8 +9,7 @@ const LigneBudgetaireForm = ({ isOpen, onClose, onSubmit, ligne = null }) => {
   const [formData, setFormData] = useState({
     numero: ligne?.numero || '',
     libelle: ligne?.libelle || '',
-    montantInitial: ligne?.montantInitial || '',
-    montantRestant: ligne?.montantRestant || ''
+    montantInitial: ligne?.montantInitial || ''
   });
 
   const [errors, setErrors] = useState({});
@@ -42,12 +41,6 @@ const LigneBudgetaireForm = ({ isOpen, onClose, onSubmit, ligne = null }) => {
     if (!formData.montantInitial || parseFloat(formData.montantInitial) <= 0) {
       newErrors.montantInitial = 'Le montant initial doit être supérieur à 0';
     }
-    if (!formData.montantRestant || parseFloat(formData.montantRestant) < 0) {
-      newErrors.montantRestant = 'Le montant restant ne peut pas être négatif';
-    }
-    if (parseFloat(formData.montantRestant) > parseFloat(formData.montantInitial)) {
-      newErrors.montantRestant = 'Le montant restant ne peut pas être supérieur au montant initial';
-    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -60,7 +53,8 @@ const LigneBudgetaireForm = ({ isOpen, onClose, onSubmit, ligne = null }) => {
       const submitData = {
         ...formData,
         montantInitial: parseFloat(formData.montantInitial),
-        montantRestant: parseFloat(formData.montantRestant)
+        // Le montant restant est égal au montant initial lors de la création
+        montantRestant: parseFloat(formData.montantInitial)
       };
       onSubmit(submitData);
       handleClose();
@@ -71,8 +65,7 @@ const LigneBudgetaireForm = ({ isOpen, onClose, onSubmit, ligne = null }) => {
     setFormData({
       numero: '',
       libelle: '',
-      montantInitial: '',
-      montantRestant: ''
+      montantInitial: ''
     });
     setErrors({});
     onClose();
@@ -127,24 +120,6 @@ const LigneBudgetaireForm = ({ isOpen, onClose, onSubmit, ligne = null }) => {
           />
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Montant restant (CFA) *
-          </label>
-          <Input
-            name="montantRestant"
-            type="number"
-            min="0"
-            step="0.01"
-            value={formData.montantRestant}
-            onChange={handleChange}
-            placeholder="1000000"
-            error={errors.montantRestant}
-          />
-          <p className="text-xs text-gray-500 mt-1">
-            Le montant restant ne peut pas être supérieur au montant initial
-          </p>
-        </div>
 
         <div className="flex justify-end space-x-3 pt-4">
           <Button

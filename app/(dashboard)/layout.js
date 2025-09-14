@@ -127,9 +127,16 @@ export default function DashboardLayout({ children }) {
         sidebarOpen ? 'translate-x-0' : '-translate-x-full'
       )}>
         <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200">
-          <h1 className="text-xl font-bold text-gray-900">
-            Suivi Conventions
-          </h1>
+          <div className="flex items-center space-x-3">
+            <img 
+              src="/logo_swc.png" 
+              alt="Logo SWC" 
+              className="h-8 w-auto"
+            />
+            <h1 className="text-xl font-bold text-gray-900">
+              Suivi Conventions
+            </h1>
+          </div>
           <button
             className="lg:hidden"
             onClick={() => setSidebarOpen(false)}
