@@ -10,7 +10,8 @@ const protectedRoutes = [
   '/partenaires',
   '/lignes-budgetaires',
   '/rapports',
-  '/configuration'
+  '/configuration',
+  '/utilisateurs'
 ];
 
 // Routes publiques (pas besoin d'authentification)

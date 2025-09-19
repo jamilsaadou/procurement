@@ -25,8 +25,8 @@ export function LoginForm() {
     if (redirect) {
       setRedirectUrl(redirect);
     } else {
-      // Par défaut, rediriger vers le tableau de bord
-      setRedirectUrl('/dashboard');
+      // Par défaut, rediriger vers la page d'accueil (tableau de bord)
+      setRedirectUrl('/');
     }
   }, [searchParams]);
 
@@ -57,9 +57,9 @@ export function LoginForm() {
       const data = await response.json();
 
       if (response.ok && data.success) {
-        // Rediriger vers l'URL demandée ou le dashboard par défaut
+        // Rediriger vers l'URL demandée ou la page d'accueil par défaut
         // Utiliser router.push() au lieu de window.location.href
-        router.push(redirectUrl || '/dashboard');
+        router.push(redirectUrl || '/');
       } else {
         setError(data.error || 'Erreur de connexion');
       }
