@@ -47,8 +47,10 @@ export async function middleware(request) {
   const token = request.cookies.get('auth-token')?.value;
   
   console.log('Middleware - Path:', pathname);
-  console.log('Middleware - Token:', token ? 'Present' : 'Missing');
-  console.log('Middleware - All cookies:', request.cookies.getAll());
+  console.log('Middleware - Token:', token ? `Present (${token.substring(0, 20)}...)` : 'Missing');
+  console.log('Middleware - All cookies:', request.cookies.getAll().map(c => `${c.name}=${c.value.substring(0, 20)}...`));
+  console.log('Middleware - User-Agent:', request.headers.get('user-agent'));
+  console.log('Middleware - Referer:', request.headers.get('referer'));
 
   if (!token) {
     console.log('Middleware - No token, redirecting to login');

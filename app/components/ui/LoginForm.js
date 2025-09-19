@@ -58,8 +58,14 @@ export function LoginForm() {
 
       if (response.ok && data.success) {
         // Rediriger vers l'URL demandée ou la page d'accueil par défaut
-        // Utiliser router.push() au lieu de window.location.href
-        router.push(redirectUrl || '/');
+        // Utiliser window.location.href pour forcer le rechargement en production
+        console.log('Login successful, redirecting to:', redirectUrl || '/');
+        console.log('Document cookies:', document.cookie);
+        
+        // Attendre un peu pour que le cookie soit bien défini
+        setTimeout(() => {
+          window.location.href = redirectUrl || '/';
+        }, 100);
       } else {
         setError(data.error || 'Erreur de connexion');
       }

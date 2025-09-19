@@ -35,9 +35,12 @@ export async function POST(request) {
 
     // Définir le cookie d'authentification
     console.log('Login API - Setting cookie with token:', result.token.substring(0, 20) + '...');
+    console.log('Login API - NODE_ENV:', process.env.NODE_ENV);
+    console.log('Login API - Setting secure cookie:', process.env.NODE_ENV === 'production');
+    
     response.cookies.set('auth-token', result.token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: false, // Désactiver temporairement pour tester sans HTTPS
       sameSite: 'lax',
       maxAge: 24 * 60 * 60, // 24 heures
       path: '/'
